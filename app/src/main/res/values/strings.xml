@@ -5,29 +5,23 @@
     <string name="tab_scan">Scan</string>
     <string name="tab_shelf">Shelf order</string>
 
-    <string name="mode_add">Add books</string>
-    <string name="mode_find">Find its place</string>
     <string name="light">Light</string>
 
     <string name="camera_needed">The camera reads the barcodes on the back of each book.</string>
     <string name="camera_allow">Allow the camera</string>
 
-    <string name="hint_add">Point the camera at the barcode on the back cover. Each book is added as soon as it is read and looked up in the background.</string>
-    <string name="hint_find">Scan a book to see its number in shelf order, and which books stand either side of it.</string>
+    <string name="hint_scan">Point the camera at the barcode on the back cover. A new book is added and looked up in the background; one already here shows where it goes back on the shelf, and which books stand either side of it.</string>
+    <string name="just_added">Added to the catalogue</string>
 
     <string name="looking_up">Looking it up…</string>
     <string name="not_found">No catalogue knows this one. Tap it to fill it in.</string>
     <string name="offline">No connection. It will be looked up when there is one.</string>
     <string name="no_call_number">No call number</string>
 
-    <string name="already_have">Already catalogued</string>
-    <string name="copies">×%1$d</string>
     <string name="add_copy">Add another copy</string>
     <string name="copy_added">Copy added (×%1$d)</string>
 
     <string name="not_isbn">That barcode isn\'t an ISBN — on paperbacks it is often a price code. Look for the ISBN on the copyright page and type it in.</string>
-    <string name="not_catalogued">Not catalogued yet.</string>
-    <string name="add_it">Add it</string>
 
     <string name="position">No. %1$d</string>
     <string name="of_total">of %1$d</string>

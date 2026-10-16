@@ -13,12 +13,12 @@ Android 12 device with a camera.
 
 ## Cataloguing
 
-- **Add books.** Point the camera at the barcode on the back cover. Each book goes into
-  the catalogue the moment it is read, and is looked up in the background, so you can
-  keep scanning without waiting. One beep for a new book; two for one already
-  catalogued, which offers **Add another copy**.
-- **Find its place.** Scan a book to see where it goes: its number in shelf order, and
-  the books that stand either side of it.
+- **Scan** the barcode on the back cover. There are no modes: a new book goes into the
+  catalogue the moment it is read and is looked up in the background, so you can keep
+  scanning without waiting. A book already catalogued is taken to be going back on the
+  shelf, and Shelf shows where: its number in shelf order and the books either side
+  (with **Add another copy** for when it really is a second one). One beep for a new
+  book, two for one already here. A new book shows its place too, once it is looked up.
 - **Type a number** takes an ISBN, or an LCCN from the copyright page of a book printed
   before ISBNs.
 - **No ISBN** searches the Library of Congress by title and author, or adds the book by
@@ -41,8 +41,8 @@ you can keep by eye. Fiction comes first, then each LC class (B Philosophy, psyc
 religion; Q Science; and so on), and within each, books stand by author and then by title.
 A label on the edge of each shelf is enough. A book counts as fiction when its Dewey number
 is a fiction number (813, 823, 891.73 and the like) or its LC number is PZ; **Fiction** in a
-book's details overrules that either way. In this order, **Find its place** names the
-section and the books either side of it within that section.
+book's details overrules that either way. In this order, a scanned book's place names
+its section and the books either side of it within that section.
 
 **To fix** narrows the list to the books still to be looked up or that no catalogue knew,
 and the books with no call number. Tap any book to correct it, change the number of copies,

@@ -64,9 +64,8 @@ import zxingcpp.BarcodeReader
 /** What the last scan did, shown under the camera until the next one. */
 sealed interface Event {
     data class Added(val id: Long) : Event
-    data class Duplicate(val id: Long, val copyAdded: Boolean = false) : Event
-    data class Place(val id: Long) : Event
-    data class Unknown(val isbn: String) : Event
+    /** A book already catalogued: most likely going back on the shelf, or a second copy. */
+    data class Place(val id: Long, val copyAdded: Boolean = false) : Event
     data object NotIsbn : Event
 }
 
@@ -170,7 +169,6 @@ private fun ScanScreen(
         )
     }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
-    var findMode by rememberSaveable { mutableStateOf(false) }
     var torch by rememberSaveable { mutableStateOf(false) }
     var manual by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf(false) }
@@ -179,15 +177,11 @@ private fun ScanScreen(
     val feedback = remember { Feedback(context) }
     DisposableEffect(Unit) { onDispose { feedback.release() } }
 
+    // No modes: a book the catalogue has is going back on the shelf, any other is new.
     fun take(isbn: String) {
         val have = lib.findIsbn(isbn)
-        if (findMode) {
-            if (have != null) { feedback.good(); setEvent(Event.Place(have.id)) }
-            else { feedback.again(); setEvent(Event.Unknown(isbn)) }
-        } else {
-            if (have != null) { feedback.again(); setEvent(Event.Duplicate(have.id)) }
-            else { feedback.good(); setEvent(Event.Added(lib.addIsbn(isbn).id)) }
-        }
+        if (have != null) { feedback.again(); setEvent(Event.Place(have.id)) }
+        else { feedback.good(); setEvent(Event.Added(lib.addIsbn(isbn).id)) }
     }
 
     // The Kompakt's screen is 610dp tall, the Pixel's 850: the camera takes what is spare.
@@ -224,13 +218,8 @@ private fun ScanScreen(
             }
         }
 
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Choice(stringResource(R.string.mode_add), !findMode, Modifier.weight(1f)) { findMode = false; setEvent(null) }
-            Choice(stringResource(R.string.mode_find), findMode, Modifier.weight(1f)) { findMode = true; setEvent(null) }
-        }
-
-        Box(Modifier.fillMaxWidth().height(if (tall) 150.dp else 112.dp).padding(horizontal = 16.dp)) {
-            EventCard(lib, books, event, findMode, setEvent, open)
+        Box(Modifier.fillMaxWidth().height(if (tall) 210.dp else 172.dp).padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
+            EventCard(lib, books, event, setEvent, open)
         }
 
         Row(Modifier.fillMaxWidth()) {
@@ -240,7 +229,10 @@ private fun ScanScreen(
 
         HorizontalDividerMMD(thickness = 1.dp)
         val recent = remember(books) { books.sortedByDescending { it.added }.take(60) }
-        LazyColumnMMD(Modifier.weight(1f), isScrollbarVisible = false) {
+        // The newest scan goes on top; without this the list keeps hold of the old top book.
+        val recentList = rememberLazyListState()
+        LaunchedEffect(recent.firstOrNull()?.id) { recentList.scrollToItem(0) }
+        LazyColumnMMD(Modifier.weight(1f), state = recentList, isScrollbarVisible = false) {
             items(recent.size, key = { recent[it].id }) { i ->
                 val b = recent[i]
                 Column(Modifier.fillMaxWidth().clickable { open(b.id) }.padding(horizontal = 16.dp, vertical = 6.dp)) {
@@ -289,29 +281,24 @@ private fun EventCard(
     lib: Library,
     books: List<Book>,
     event: Event?,
-    findMode: Boolean,
     setEvent: (Event?) -> Unit,
     open: (Long) -> Unit,
 ) {
     val system by lib.system.collectAsStateWithLifecycle()
-    val shelf by lib.shelf.collectAsStateWithLifecycle()
     val title = MaterialTheme.typography.titleMedium
 
     when (event) {
-        null -> Small(stringResource(if (findMode) R.string.hint_find else R.string.hint_add), maxLines = 5)
+        null -> Small(stringResource(R.string.hint_scan), maxLines = 6)
 
         Event.NotIsbn -> TextMMD(text = stringResource(R.string.not_isbn), style = MaterialTheme.typography.bodySmall)
 
-        is Event.Unknown -> Column {
-            TextMMD(text = stringResource(R.string.not_catalogued), style = title, fontWeight = FontWeight.Bold)
-            Small(event.isbn, mono = true)
-            Link(stringResource(R.string.add_it), Modifier.padding(top = 4.dp)) {
-                setEvent(Event.Added(lib.addIsbn(event.isbn).id))
-            }
-        }
-
         is Event.Added -> {
             val b = books.firstOrNull { it.id == event.id } ?: return
+            // Once its number is known a new book has a place too, so it can go straight up.
+            if (b.status == Status.FOUND) {
+                PlaceCard(lib, b.id, open) { Small(stringResource(R.string.just_added)) }
+                return
+            }
             Column(Modifier.fillMaxSize().clickable { open(b.id) }) {
                 TextMMD(
                     text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, style = title,
@@ -327,46 +314,49 @@ private fun EventCard(
             }
         }
 
-        is Event.Duplicate -> {
-            val b = books.firstOrNull { it.id == event.id } ?: return
-            Column {
-                TextMMD(
-                    text = if (event.copyAdded) stringResource(R.string.copy_added, b.copies)
-                    else stringResource(R.string.already_have) + "  " + stringResource(R.string.copies, b.copies),
-                    style = title, fontWeight = FontWeight.Bold,
-                )
-                TextMMD(text = b.title.ifEmpty { b.isbn }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (!event.copyAdded) Link(stringResource(R.string.add_copy)) {
-                    lib.addCopy(b.id); setEvent(Event.Duplicate(b.id, copyAdded = true))
+        is Event.Place -> PlaceCard(lib, event.id, open) {
+            val b = books.firstOrNull { it.id == event.id } ?: return@PlaceCard
+            if (event.copyAdded) {
+                Small(stringResource(R.string.copy_added, b.copies), Modifier.padding(vertical = 10.dp))
+            } else {
+                Link(stringResource(R.string.add_copy), bold = false) {
+                    lib.addCopy(b.id); setEvent(Event.Place(b.id, copyAdded = true))
                 }
             }
         }
+    }
+}
 
-        is Event.Place -> {
-            val i = shelf.indexOfFirst { it.book.id == event.id }
-            if (i < 0) return
-            val p = shelf[i]
-            Column(Modifier.fillMaxSize().clickable { open(p.book.id) }) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    TextMMD(text = stringResource(R.string.position, p.position), fontSize = 40.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(8.dp))
-                    TextMMD(text = stringResource(R.string.of_total, shelf.size), modifier = Modifier.padding(bottom = 6.dp))
-                }
-                if (system == CallNumber.System.SECTIONS) {
-                    // By author within a section, so the neighbours are named by author too.
-                    val section = sectionName(p.section)
-                    fun named(b: Book) = listOf(b.author.substringBefore(','), b.title).filter { it.isNotEmpty() }.joinToString(", ")
-                    fun near(j: Int) = shelf.getOrNull(j)?.takeIf { it.section == p.section }
-                    Small(section + "  ·  " + p.book.title)
-                    Small(near(i - 1)?.let { stringResource(R.string.after, named(it.book)) } ?: stringResource(R.string.first_in_section, section))
-                    Small(near(i + 1)?.let { stringResource(R.string.before, named(it.book)) } ?: stringResource(R.string.last_in_section, section))
-                } else {
-                    Small(p.book.callNumber(system).ifEmpty { stringResource(R.string.no_call_number) } + "  ·  " + p.book.title)
-                    Small(shelf.getOrNull(i - 1)?.let { stringResource(R.string.after, it.book.title) } ?: stringResource(R.string.first_on_shelf))
-                    Small(shelf.getOrNull(i + 1)?.let { stringResource(R.string.before, it.book.title) } ?: stringResource(R.string.last_on_shelf))
-                }
+/** Where a book stands: its number in shelf order and the books either side, then [foot]. */
+@Composable
+private fun PlaceCard(lib: Library, id: Long, open: (Long) -> Unit, foot: @Composable () -> Unit) {
+    val system by lib.system.collectAsStateWithLifecycle()
+    val shelf by lib.shelf.collectAsStateWithLifecycle()
+    val i = shelf.indexOfFirst { it.book.id == id }
+    if (i < 0) return
+    val p = shelf[i]
+    Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth().clickable { open(p.book.id) }) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                TextMMD(text = stringResource(R.string.position, p.position), fontSize = 40.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(8.dp))
+                TextMMD(text = stringResource(R.string.of_total, shelf.size), modifier = Modifier.padding(bottom = 6.dp))
+            }
+            if (system == CallNumber.System.SECTIONS) {
+                // By author within a section, so the neighbours are named by author too.
+                val section = sectionName(p.section)
+                fun named(b: Book) = listOf(b.author.substringBefore(','), b.title).filter { it.isNotEmpty() }.joinToString(", ")
+                fun near(j: Int) = shelf.getOrNull(j)?.takeIf { it.section == p.section }
+                Small(section + "  ·  " + p.book.title)
+                Small(near(i - 1)?.let { stringResource(R.string.after, named(it.book)) } ?: stringResource(R.string.first_in_section, section))
+                Small(near(i + 1)?.let { stringResource(R.string.before, named(it.book)) } ?: stringResource(R.string.last_in_section, section))
+            } else {
+                Small(p.book.callNumber(system).ifEmpty { stringResource(R.string.no_call_number) } + "  ·  " + p.book.title)
+                Small(shelf.getOrNull(i - 1)?.let { stringResource(R.string.after, it.book.title) } ?: stringResource(R.string.first_on_shelf))
+                Small(shelf.getOrNull(i + 1)?.let { stringResource(R.string.before, it.book.title) } ?: stringResource(R.string.last_on_shelf))
             }
         }
+        foot()
     }
 }
 
