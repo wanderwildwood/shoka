@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Library of Congress catalogue answers SRU queries over plain HTTP only. Nothing
+     private goes to it: an ISBN, an LCCN, or a title; and every other host stays HTTPS. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">lx2.loc.gov</domain>
+    </domain-config>
+</network-security-config>

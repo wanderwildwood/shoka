@@ -1,0 +1,215 @@
+package com.wanderwildwood.shoka
+
+import android.util.Xml
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import org.xmlpull.v1.XmlPullParser
+import java.io.IOException
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+
+/** What a catalogue said about one book. Empty strings for what it didn't say. */
+data class Found(
+    val title: String = "",
+    val author: String = "",
+    val year: String = "",
+    val lc: String = "",
+    val ddc: String = "",
+    val lccn: String = "",
+    val isbn: String = "",
+    val source: String = "",
+)
+
+sealed interface Answer {
+    data class Hit(val found: Found) : Answer
+    data object Miss : Answer
+    data object Offline : Answer
+}
+
+/**
+ * The Library of Congress catalogue first, because its 050 field is the call number LC
+ * itself assigned; Open Library after it, for books LC never catalogued and for the gaps.
+ * No account and no key for either.
+ */
+object Lookup {
+
+    private const val LOC = "http://lx2.loc.gov:210/lcdb"
+    private const val AGENT = "Shelf/0.1 (personal book catalogue; Android)"
+
+    suspend fun byIsbn(isbn13: String): Answer = withContext(Dispatchers.IO) {
+        var offline = false
+        fun <T> attempt(block: () -> T): T? = try {
+            block()
+        } catch (e: IOException) {
+            offline = true; null
+        }
+
+        val forms = listOfNotNull(isbn13, Isbn.to10(isbn13))
+        val loc = forms.firstNotNullOfOrNull { form ->
+            attempt { sru("bath.isbn=$form", 3) }?.maxByOrNull { if (it.lc.isNotEmpty()) 1 else 0 }
+        }
+        val ol = if (loc == null || loc.lc.isEmpty() || loc.ddc.isEmpty()) {
+            attempt { openLibrary("ISBN:$isbn13") }
+        } else {
+            null
+        }
+        val merged = merge(loc, ol)?.copy(isbn = isbn13)
+        when {
+            merged != null -> Answer.Hit(merged)
+            offline -> Answer.Offline
+            else -> Answer.Miss
+        }
+    }
+
+    suspend fun byLccn(lccn: String): Answer = withContext(Dispatchers.IO) {
+        try {
+            val loc = sru("bath.lccn=$lccn", 1).firstOrNull()
+            val ol = if (loc == null || loc.lc.isEmpty()) openLibrary("LCCN:$lccn") else null
+            merge(loc, ol)?.let { Answer.Hit(it.copy(lccn = lccn)) } ?: Answer.Miss
+        } catch (e: IOException) {
+            Answer.Offline
+        }
+    }
+
+    /** For books with no ISBN at all. Throws [IOException] when there is no network. */
+    suspend fun search(title: String, author: String): List<Found> = withContext(Dispatchers.IO) {
+        val terms = buildList {
+            if (title.isNotBlank()) add("bath.title=\"${title.trim().replace("\"", "")}\"")
+            if (author.isNotBlank()) add("bath.author=\"${author.trim().replace("\"", "")}\"")
+        }
+        if (terms.isEmpty()) emptyList() else sru(terms.joinToString(" and "), 25)
+    }
+
+    private fun merge(loc: Found?, ol: Found?): Found? {
+        if (loc == null) return ol
+        if (ol == null) return loc
+        return loc.copy(
+            title = loc.title.ifEmpty { ol.title },
+            author = loc.author.ifEmpty { ol.author },
+            year = loc.year.ifEmpty { ol.year },
+            lc = loc.lc.ifEmpty { ol.lc },
+            ddc = loc.ddc.ifEmpty { ol.ddc },
+            lccn = loc.lccn.ifEmpty { ol.lccn },
+            source = if (loc.lc.isEmpty() && ol.lc.isNotEmpty()) "LoC + Open Library" else loc.source,
+        )
+    }
+
+    private fun get(url: String): InputStream {
+        val c = URL(url).openConnection() as HttpURLConnection
+        c.connectTimeout = 10_000
+        c.readTimeout = 20_000
+        c.setRequestProperty("User-Agent", AGENT)
+        if (c.responseCode != 200) {
+            c.disconnect()
+            throw IOException("HTTP ${c.responseCode}")
+        }
+        return c.inputStream
+    }
+
+    // ---- Library of Congress, SRU returning MARCXML ----
+
+    private fun sru(query: String, max: Int): List<Found> {
+        val url = "$LOC?version=1.1&operation=searchRetrieve&recordSchema=marcxml" +
+            "&maximumRecords=$max&query=" + URLEncoder.encode(query, "UTF-8")
+        return get(url).use(::parseMarc)
+    }
+
+    private fun parseMarc(input: InputStream): List<Found> {
+        val p = Xml.newPullParser()
+        p.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
+        p.setInput(input, "UTF-8")
+        val out = mutableListOf<Found>()
+        var fields: MutableMap<String, MutableList<Map<Char, String>>>? = null
+        var tag = ""
+        var sub: MutableMap<Char, String>? = null
+        var code = ' '
+        while (p.next() != XmlPullParser.END_DOCUMENT) {
+            when (p.eventType) {
+                XmlPullParser.START_TAG -> when (p.name) {
+                    "record" -> fields = mutableMapOf()
+                    "datafield" -> {
+                        tag = p.getAttributeValue(null, "tag") ?: ""
+                        sub = mutableMapOf()
+                    }
+                    "subfield" -> {
+                        code = p.getAttributeValue(null, "code")?.firstOrNull() ?: ' '
+                        val text = p.nextText()
+                        // Keep the first of each code; 050 can repeat $a with alternatives.
+                        if (sub != null && code !in sub!!) sub!![code] = text
+                    }
+                }
+                XmlPullParser.END_TAG -> when (p.name) {
+                    "datafield" -> {
+                        sub?.let { fields?.getOrPut(tag) { mutableListOf() }?.add(it) }
+                        sub = null
+                    }
+                    "record" -> {
+                        fields?.let { out += fromMarc(it) }
+                        fields = null
+                    }
+                }
+            }
+        }
+        return out
+    }
+
+    private fun fromMarc(f: Map<String, List<Map<Char, String>>>): Found {
+        fun first(tag: String, code: Char) = f[tag]?.firstOrNull()?.get(code)?.trim() ?: ""
+        fun strip(s: String) = s.trim().trimEnd('/', ':', ';', ',', '.', ' ', '=').trim()
+
+        val title = listOf(first("245", 'a'), first("245", 'b'))
+            .map(::strip).filter { it.isNotEmpty() }.joinToString(": ")
+        val author = strip(
+            first("100", 'a').ifEmpty { first("110", 'a') }.ifEmpty { first("111", 'a') }
+                .ifEmpty { first("245", 'c') }
+        )
+        val year = Regex("""\d{4}""").find(first("264", 'c').ifEmpty { first("260", 'c') })
+            ?.value ?: ""
+        val lcRaw = listOf(first("050", 'a'), first("050", 'b')).filter { it.isNotEmpty() }
+            .joinToString(" ")
+            .ifEmpty { listOf(first("090", 'a'), first("090", 'b')).joinToString(" ").trim() }
+        return Found(
+            title = title,
+            author = author,
+            year = year,
+            lc = CallNumber.cleanLc(lcRaw),
+            ddc = CallNumber.cleanDdc(first("082", 'a')),
+            lccn = first("010", 'a').trim(),
+            isbn = first("020", 'a').split(' ').firstOrNull()?.let { Isbn.normalize(it) } ?: "",
+            source = "Library of Congress",
+        )
+    }
+
+    // ---- Open Library ----
+
+    private fun openLibrary(bibkey: String): Found? {
+        val url = "https://openlibrary.org/api/books?jscmd=data&format=json&bibkeys=" +
+            URLEncoder.encode(bibkey, "UTF-8")
+        val body = get(url).use { it.readBytes().toString(Charsets.UTF_8) }
+        val root = JSONObject(body)
+        val key = root.keys().asSequence().firstOrNull() ?: return null
+        val o = root.getJSONObject(key)
+        val classes = o.optJSONObject("classifications")
+        fun strings(obj: JSONObject?, name: String): List<String> {
+            val a = obj?.optJSONArray(name) ?: return emptyList()
+            return (0 until a.length()).map { a.optString(it) }
+        }
+        val title = listOf(o.optString("title"), o.optString("subtitle"))
+            .filter { it.isNotBlank() }.joinToString(": ")
+        val author = o.optJSONArray("authors")?.optJSONObject(0)?.optString("name") ?: ""
+        return Found(
+            title = title,
+            author = author,
+            year = Regex("""\d{4}""").find(o.optString("publish_date"))?.value ?: "",
+            lc = strings(classes, "lc_classifications").map(CallNumber::cleanLc)
+                .firstOrNull { it.isNotEmpty() } ?: "",
+            ddc = strings(classes, "dewey_decimal_class").map(CallNumber::cleanDdc)
+                .firstOrNull { it.isNotEmpty() } ?: "",
+            lccn = strings(o.optJSONObject("identifiers"), "lccn").firstOrNull() ?: "",
+            source = "Open Library",
+        )
+    }
+}

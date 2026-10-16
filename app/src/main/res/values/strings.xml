@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shelf</string>
+
+    <string name="tab_scan">Scan</string>
+    <string name="tab_shelf">Shelf order</string>
+
+    <string name="mode_add">Add books</string>
+    <string name="mode_find">Find its place</string>
+    <string name="light">Light</string>
+
+    <string name="camera_needed">The camera reads the barcodes on the back of each book.</string>
+    <string name="camera_allow">Allow the camera</string>
+
+    <string name="hint_add">Point the camera at the barcode on the back cover. Each book is added as soon as it is read and looked up in the background.</string>
+    <string name="hint_find">Scan a book to see its number in shelf order, and which books stand either side of it.</string>
+
+    <string name="looking_up">Looking it up…</string>
+    <string name="not_found">No catalogue knows this one. Tap it to fill it in.</string>
+    <string name="offline">No connection. It will be looked up when there is one.</string>
+    <string name="no_call_number">No call number</string>
+
+    <string name="already_have">Already catalogued</string>
+    <string name="copies">×%1$d</string>
+    <string name="add_copy">Add another copy</string>
+    <string name="copy_added">Copy added (×%1$d)</string>
+
+    <string name="not_isbn">That barcode isn\'t an ISBN — on paperbacks it is often a price code. Look for the ISBN on the copyright page and type it in.</string>
+    <string name="not_catalogued">Not catalogued yet.</string>
+    <string name="add_it">Add it</string>
+
+    <string name="position">No. %1$d</string>
+    <string name="of_total">of %1$d</string>
+    <string name="after">After: %1$s</string>
+    <string name="before">Before: %1$s</string>
+    <string name="first_on_shelf">First on the shelf</string>
+    <string name="last_on_shelf">Last on the shelf</string>
+
+    <string name="type_number">Type a number</string>
+    <string name="search_title">No ISBN</string>
+
+    <string name="recent">Just scanned</string>
+
+    <string name="summary">%1$d books</string>
+    <string name="summary_looking">%1$d looking up</string>
+    <string name="summary_missing">%1$d not found</string>
+    <string name="summary_offline">%1$d waiting for a connection</string>
+    <string name="retry">Try again</string>
+
+    <string name="system_lc">Library of Congress</string>
+    <string name="system_dewey">Dewey</string>
+    <string name="filter">Search the catalogue</string>
+    <string name="needs_attention">Needs attention</string>
+    <string name="unclassified_lc">No LC number — by author</string>
+    <string name="unclassified_dewey">No Dewey number — by author</string>
+    <string name="empty_shelf">Nothing catalogued yet.</string>
+
+    <string name="menu">Menu</string>
+    <string name="export_csv">Save as a spreadsheet (CSV)</string>
+    <string name="import_csv">Add from a spreadsheet (CSV)</string>
+    <string name="exported">Saved.</string>
+    <string name="export_failed">Couldn\'t save the file.</string>
+    <string name="imported">Added %1$d books.</string>
+    <string name="import_failed">Couldn\'t read that file.</string>
+
+    <string name="manual_title">Type a number</string>
+    <string name="manual_label">ISBN, or LCCN from the copyright page</string>
+    <string name="manual_bad">That isn\'t a valid ISBN or LCCN.</string>
+    <string name="add">Add</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+
+    <string name="search_heading">Search the Library of Congress</string>
+    <string name="field_title">Title</string>
+    <string name="field_author">Author</string>
+    <string name="search">Search</string>
+    <string name="searching">Searching…</string>
+    <string name="search_none">Nothing found. Try fewer words, or add it by hand.</string>
+    <string name="search_offline">No connection.</string>
+    <string name="add_by_hand">None of these — add it by hand</string>
+
+    <string name="edit_heading">Book</string>
+    <string name="field_year">Year</string>
+    <string name="field_lc">LC call number</string>
+    <string name="field_dewey">Dewey number</string>
+    <string name="field_isbn">ISBN</string>
+    <string name="field_copies">Copies</string>
+    <string name="source">From: %1$s</string>
+    <string name="save">Save</string>
+    <string name="look_again">Look it up again</string>
+    <string name="delete">Delete</string>
+    <string name="delete_armed">Tap again to delete</string>
+    <string name="lc_invalid">Not an LC call number; it will sort with the unnumbered books.</string>
+</resources>
