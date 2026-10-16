@@ -31,10 +31,18 @@ connection comes back.
 
 ## Shelf order
 
-**Library of Congress** or **Dewey**, switched at the top of the list. LC numbers sort
+**LC**, **Dewey** or **Sections**, switched at the top of the list. LC numbers sort
 the way a library shelves them: class letters, then the class number, then each Cutter
 read as a decimal. Books with no number for the chosen system come after the numbered
 ones, by author and then by title.
+
+**Sections** is for a house rather than a library: no labels on the spines, and an order
+you can keep by eye. Fiction comes first, then each LC class (B Philosophy, psychology,
+religion; Q Science; and so on), and within each, books stand by author and then by title.
+A label on the edge of each shelf is enough. A book counts as fiction when its Dewey number
+is a fiction number (813, 823, 891.73 and the like) or its LC number is PZ; **Fiction** in a
+book's details overrules that either way. In this order, **Find its place** names the
+section and the books either side of it within that section.
 
 **To fix** narrows the list to the books still to be looked up or that no catalogue knew,
 and the books with no call number. Tap any book to correct it, change the number of copies,
@@ -48,7 +56,7 @@ The [Library of Congress catalogue](https://www.loc.gov/) first, then
 ## Keeping the list
 
 The catalogue lives on the phone. **Menu → Save as a spreadsheet** writes it out in
-shelf order as a CSV, and **Add from a spreadsheet** reads one back in.
+shelf order as a CSV (with each book's section, in the Sections order), and **Add from a spreadsheet** reads one back in.
 
 With a [Nextcloud](https://nextcloud.com/) account, **Menu → Nextcloud** keeps the
 catalogue in a folder there (`Books` unless you choose another), as `catalogue.json` with
@@ -68,7 +76,7 @@ A release build needs a keystore at `signing/signing.keystore` with a matching
 release build comes out unsigned rather than wrongly signed.
 
 `./gradlew testDebugUnitTest` runs the tests: ISBN and LCCN checking, call-number sort
-order, merging two phones' catalogues, and reading Nextcloud's sign-in QR code.
+order, the Sections order, merging two phones' catalogues, and reading Nextcloud's sign-in QR code.
 
 ## Getting it, and keeping it
 

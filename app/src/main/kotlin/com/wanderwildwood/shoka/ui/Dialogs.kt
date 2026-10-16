@@ -191,6 +191,7 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
     var lc by remember(book.id) { mutableStateOf(book.lc) }
     var ddc by remember(book.id) { mutableStateOf(book.ddc) }
     var copies by remember(book.id) { mutableStateOf(book.copies) }
+    var fiction by remember(book.id) { mutableStateOf(book.fiction) }
     var armed by remember { mutableStateOf(false) }
 
     // Fill in whatever a lookup brings back while the dialog is open, if not yet typed over.
@@ -206,7 +207,7 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
 
     fun edited() = book.copy(
         title = title.trim(), author = author.trim(), year = year.trim(),
-        lc = lc.trim().replace(Regex("""\s+"""), " "), ddc = ddc.trim(), copies = copies,
+        lc = lc.trim().replace(Regex("""\s+"""), " "), ddc = ddc.trim(), copies = copies, fiction = fiction,
         status = if (book.status == Status.NOT_FOUND && (lc.isNotBlank() || ddc.isNotBlank())) Status.FOUND else book.status,
         source = if (lc != book.lc || ddc != book.ddc) "edited" else book.source,
     )
@@ -225,6 +226,16 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
                 Link("−") { if (copies > 1) copies-- }
                 TextMMD(text = copies.toString(), fontWeight = FontWeight.Bold)
                 Link("+") { copies++ }
+            }
+            // Follows the numbers as they are typed, until set here against them.
+            val guess = Book(id = 0, lc = lc, ddc = ddc).fictionGuess
+            val isFiction = fiction ?: guess
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextMMD(text = stringResource(R.string.field_fiction))
+                Spacer(Modifier.weight(1f))
+                Link(stringResource(if (isFiction) R.string.yes else R.string.no)) {
+                    fiction = (!isFiction).takeIf { it != guess }
+                }
             }
             val ids = listOfNotNull(
                 book.isbn.takeIf { it.isNotEmpty() }?.let { "ISBN $it" },

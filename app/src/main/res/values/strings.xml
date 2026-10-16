@@ -47,8 +47,38 @@
     <string name="summary_offline">%1$d waiting for a connection</string>
     <string name="retry">Try again</string>
 
-    <string name="system_lc">Library of Congress</string>
+    <string name="system_lc">LC</string>
     <string name="system_dewey">Dewey</string>
+    <string name="system_sections">Sections</string>
+    <string name="section_fiction">Fiction</string>
+    <string name="section_none">No LC class — by author</string>
+    <string name="section_count">%1$s  (%2$d)</string>
+    <string name="first_in_section">First in %1$s</string>
+    <string name="last_in_section">Last in %1$s</string>
+    <!-- One per letter of Shelf.lcClasses, in that order. -->
+    <string-array name="lc_classes">
+        <item>A · General works</item>
+        <item>B · Philosophy, psychology, religion</item>
+        <item>C · History: auxiliary sciences</item>
+        <item>D · World history</item>
+        <item>E · History of the Americas</item>
+        <item>F · Local history of the Americas</item>
+        <item>G · Geography, anthropology, recreation</item>
+        <item>H · Social sciences</item>
+        <item>J · Political science</item>
+        <item>K · Law</item>
+        <item>L · Education</item>
+        <item>M · Music</item>
+        <item>N · Fine arts</item>
+        <item>P · Language and literature</item>
+        <item>Q · Science</item>
+        <item>R · Medicine</item>
+        <item>S · Agriculture</item>
+        <item>T · Technology</item>
+        <item>U · Military science</item>
+        <item>V · Naval science</item>
+        <item>Z · Books, libraries, bibliography</item>
+    </string-array>
     <string name="filter">Search the catalogue</string>
     <string name="needs_attention">To fix</string>
     <string name="unclassified_lc">No LC number — by author</string>
@@ -90,6 +120,9 @@
     <string name="look_again">Look it up again</string>
     <string name="delete">Delete</string>
     <string name="delete_armed">Tap again</string>
+    <string name="field_fiction">Fiction</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
     <string name="lc_invalid">Not an LC call number; it will sort with the unnumbered books.</string>
 
     <string name="cloud_heading">Nextcloud</string>

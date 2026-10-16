@@ -3,17 +3,19 @@ package com.wanderwildwood.shoka
 /** Plain RFC 4180 CSV: enough for a spreadsheet to open, and for this app to read back. */
 object Csv {
     val header = listOf(
-        "position", "lc", "dewey", "title", "author", "year", "isbn", "lccn", "copies", "source",
+        "position", "section", "lc", "dewey", "title", "author", "year", "isbn", "lccn", "copies", "source", "fiction",
     )
 
-    fun write(rows: List<Placed>, system: CallNumber.System): String = buildString {
+    /** [sectionName] turns a [Placed.section] into the heading the shelf list shows. */
+    fun write(rows: List<Placed>, system: CallNumber.System, sectionName: (String) -> String = { it }): String = buildString {
         appendLine(header.joinToString(","))
         for (p in rows) {
             val b = p.book
             appendLine(
                 listOf(
-                    p.position.toString(), b.lc, b.ddc, b.title, b.author, b.year, b.isbn,
-                    b.lccn, b.copies.toString(), b.source,
+                    p.position.toString(), if (system == CallNumber.System.SECTIONS) sectionName(p.section) else "",
+                    b.lc, b.ddc, b.title, b.author, b.year, b.isbn, b.lccn, b.copies.toString(), b.source,
+                    when (b.fiction) { true -> "yes"; false -> "no"; null -> "" },
                 ).joinToString(",", transform = ::quote)
             )
         }
@@ -71,6 +73,7 @@ object Csv {
                 status = Status.FOUND,
                 copies = col(r, "copies").toIntOrNull()?.coerceAtLeast(1) ?: 1,
                 added = System.currentTimeMillis(),
+                fiction = when (col(r, "fiction").lowercase()) { "yes" -> true; "no" -> false; else -> null },
             )
         }.filter { it.title.isNotEmpty() || it.isbn.isNotEmpty() }
     }

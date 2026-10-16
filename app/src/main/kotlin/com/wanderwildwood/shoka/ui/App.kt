@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,6 +35,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -54,6 +57,7 @@ import com.wanderwildwood.shoka.Isbn
 import com.wanderwildwood.shoka.Library
 import com.wanderwildwood.shoka.Placed
 import com.wanderwildwood.shoka.R
+import com.wanderwildwood.shoka.Shelf
 import com.wanderwildwood.shoka.Status
 import zxingcpp.BarcodeReader
 
@@ -262,12 +266,23 @@ private fun statusLine(b: Book, system: CallNumber.System): String = when (b.sta
     Status.LOOKING -> stringResource(R.string.looking_up)
     Status.OFFLINE -> stringResource(R.string.offline)
     Status.NOT_FOUND -> b.callNumber(system).ifEmpty { stringResource(R.string.not_found) }
-    Status.FOUND -> listOf(b.callNumber(system).ifEmpty { stringResource(R.string.no_call_number) }, b.author)
-        .filter { it.isNotEmpty() }.joinToString("  ·  ")
+    Status.FOUND -> listOf(
+        if (system == CallNumber.System.SECTIONS) sectionName(Shelf.section(b))
+        else b.callNumber(system).ifEmpty { stringResource(R.string.no_call_number) },
+        b.author,
+    ).filter { it.isNotEmpty() }.joinToString("  ·  ")
 }
 
 private fun hasCall(b: Book, system: CallNumber.System) =
-    b.status == Status.FOUND && b.callNumber(system).isNotEmpty()
+    b.status == Status.FOUND && system != CallNumber.System.SECTIONS && b.callNumber(system).isNotEmpty()
+
+/** The heading for a [Placed.section]; [Library.sectionName] is the same outside Compose. */
+@Composable
+private fun sectionName(code: String): String = when (code) {
+    Shelf.FICTION -> stringResource(R.string.section_fiction)
+    "" -> stringResource(R.string.section_none)
+    else -> stringArrayResource(R.array.lc_classes)[Shelf.lcClasses.indexOf(code)]
+}
 
 @Composable
 private fun EventCard(
@@ -337,9 +352,19 @@ private fun EventCard(
                     Spacer(Modifier.width(8.dp))
                     TextMMD(text = stringResource(R.string.of_total, shelf.size), modifier = Modifier.padding(bottom = 6.dp))
                 }
-                Small(p.book.callNumber(system).ifEmpty { stringResource(R.string.no_call_number) } + "  ·  " + p.book.title)
-                Small(shelf.getOrNull(i - 1)?.let { stringResource(R.string.after, it.book.title) } ?: stringResource(R.string.first_on_shelf))
-                Small(shelf.getOrNull(i + 1)?.let { stringResource(R.string.before, it.book.title) } ?: stringResource(R.string.last_on_shelf))
+                if (system == CallNumber.System.SECTIONS) {
+                    // By author within a section, so the neighbours are named by author too.
+                    val section = sectionName(p.section)
+                    fun named(b: Book) = listOf(b.author.substringBefore(','), b.title).filter { it.isNotEmpty() }.joinToString(", ")
+                    fun near(j: Int) = shelf.getOrNull(j)?.takeIf { it.section == p.section }
+                    Small(section + "  ·  " + p.book.title)
+                    Small(near(i - 1)?.let { stringResource(R.string.after, named(it.book)) } ?: stringResource(R.string.first_in_section, section))
+                    Small(near(i + 1)?.let { stringResource(R.string.before, named(it.book)) } ?: stringResource(R.string.last_in_section, section))
+                } else {
+                    Small(p.book.callNumber(system).ifEmpty { stringResource(R.string.no_call_number) } + "  ·  " + p.book.title)
+                    Small(shelf.getOrNull(i - 1)?.let { stringResource(R.string.after, it.book.title) } ?: stringResource(R.string.first_on_shelf))
+                    Small(shelf.getOrNull(i + 1)?.let { stringResource(R.string.before, it.book.title) } ?: stringResource(R.string.last_on_shelf))
+                }
             }
         }
     }
@@ -358,11 +383,15 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
     val missing = shelf.count { it.book.status == Status.NOT_FOUND }
     val offline = shelf.count { it.book.status == Status.OFFLINE }
 
+    val sizes = remember(shelf) { shelf.groupingBy { it.section }.eachCount() }
+    // A new order starts at its beginning, not wherever the old top book now stands.
+    val list = rememberLazyListState()
+    LaunchedEffect(system) { list.scrollToItem(0) }
     val shown = remember(shelf, query, attention, system) {
         val q = query.trim().lowercase()
         shelf.filter { p ->
             val b = p.book
-            (!attention || b.status != Status.FOUND || b.callNumber(system).isEmpty()) &&
+            (!attention || b.status != Status.FOUND || !p.classified) &&
                 (q.isEmpty() || listOf(b.title, b.author, b.lc, b.ddc, b.isbn).any { it.lowercase().contains(q) })
         }
     }
@@ -374,6 +403,9 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
             }
             Choice(stringResource(R.string.system_dewey), system == CallNumber.System.DEWEY, Modifier.weight(1f)) {
                 lib.setSystem(CallNumber.System.DEWEY)
+            }
+            Choice(stringResource(R.string.system_sections), system == CallNumber.System.SECTIONS, Modifier.weight(1f)) {
+                lib.setSystem(CallNumber.System.SECTIONS)
             }
         }
 
@@ -404,10 +436,20 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
             TextMMD(text = stringResource(R.string.empty_shelf), modifier = Modifier.padding(16.dp))
         }
 
-        LazyColumnMMD(Modifier.weight(1f).padding(top = 8.dp), isScrollbarVisible = false) {
+        LazyColumnMMD(Modifier.weight(1f).padding(top = 8.dp), state = list, isScrollbarVisible = false) {
             items(shown.size, key = { shown[it].book.id }) { i ->
                 val p = shown[i]
-                if (!p.classified && (i == 0 || shown[i - 1].classified)) {
+                if (system == CallNumber.System.SECTIONS) {
+                    if (i == 0 || shown[i - 1].section != p.section) {
+                        if (i > 0) HorizontalDividerMMD(thickness = 2.dp)
+                        TextMMD(
+                            text = stringResource(R.string.section_count, sectionName(p.section), sizes[p.section] ?: 0),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                        HorizontalDividerMMD(thickness = 2.dp)
+                    }
+                } else if (!p.classified && (i == 0 || shown[i - 1].classified)) {
                     HorizontalDividerMMD(thickness = 2.dp)
                     TextMMD(
                         text = stringResource(if (system == CallNumber.System.LC) R.string.unclassified_lc else R.string.unclassified_dewey),
@@ -432,7 +474,8 @@ private fun ShelfRow(p: Placed, system: CallNumber.System, onClick: () -> Unit) 
             modifier = Modifier.width(48.dp).padding(end = 10.dp),
         )
         Column(Modifier.weight(1f)) {
-            val call = b.callNumber(system)
+            // Sections shelves by author, so a call number here would only mislead.
+            val call = if (system == CallNumber.System.SECTIONS) "" else b.callNumber(system)
             if (call.isNotEmpty()) TextMMD(text = call, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val sub = buildList {

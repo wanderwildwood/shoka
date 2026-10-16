@@ -97,6 +97,16 @@ class Library(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("system", s.name).apply()
     }
 
+    /** The heading for a [Placed.section]: "Q · Science", "Fiction", or the no-class heading. */
+    fun sectionName(code: String): String {
+        val res = getApplication<Application>().resources
+        return when (code) {
+            Shelf.FICTION -> res.getString(R.string.section_fiction)
+            "" -> res.getString(R.string.section_none)
+            else -> res.getStringArray(R.array.lc_classes)[Shelf.lcClasses.indexOf(code)]
+        }
+    }
+
     fun find(id: Long) = books.value.firstOrNull { it.id == id }
     fun findIsbn(isbn: String) = books.value.firstOrNull { it.isbn == isbn }
     fun findLccn(lccn: String) = books.value.firstOrNull { it.lccn == lccn }
@@ -215,7 +225,7 @@ class Library(app: Application) : AndroidViewModel(app) {
                 syncState.value = SyncState.SYNCING
                 val sent = all.value
                 val result = withContext(Dispatchers.IO) {
-                    runCatching { Cloud(acct, folder.value).sync(sent, system.value) }
+                    runCatching { Cloud(acct, folder.value).sync(sent, system.value, ::sectionName) }
                 }
                 val merged = result.getOrNull()
                 if (merged == null) {
@@ -256,7 +266,7 @@ class Library(app: Application) : AndroidViewModel(app) {
 
     suspend fun export(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         runCatching {
-            val text = Csv.write(shelf.value, system.value)
+            val text = Csv.write(shelf.value, system.value, ::sectionName)
             getApplication<Application>().contentResolver.openOutputStream(uri, "wt")!!
                 .use { it.write(text.toByteArray()) }
         }.isSuccess

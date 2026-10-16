@@ -148,7 +148,7 @@ class Cloud(private val account: Account, folder: String) {
      * Brings [local] and the server's copy together and writes the result back. Returns the
      * merged list for this phone to keep.
      */
-    fun sync(local: List<Book>, system: CallNumber.System): List<Book> {
+    fun sync(local: List<Book>, system: CallNumber.System, sectionName: (String) -> String): List<Book> {
         repeat(4) {
             val remote = fetch()
             val merged = Merge.merge(local, remote?.first ?: emptyList())
@@ -162,7 +162,7 @@ class Cloud(private val account: Account, folder: String) {
             )
             if (wrote) {
                 if (!unchanged) {
-                    put("shelf-order.csv", Csv.write(Shelf.order(merged, system), system), "text/csv", null, false)
+                    put("shelf-order.csv", Csv.write(Shelf.order(merged, system), system, sectionName), "text/csv", null, false)
                 }
                 return merged
             }

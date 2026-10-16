@@ -56,7 +56,8 @@ object CallNumber {
     }
 
     fun key(raw: String, system: System): String? =
-        if (system == System.LC) lcKey(raw) else ddcKey(raw)
+        if (system == System.DEWEY) ddcKey(raw) else lcKey(raw)
 
-    enum class System { LC, DEWEY }
+    /** SECTIONS: by LC class letter, Fiction on its own, and author within each (see [Shelf]). */
+    enum class System { LC, DEWEY, SECTIONS }
 }
