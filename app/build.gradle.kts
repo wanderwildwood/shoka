@@ -12,9 +12,9 @@ android {
 
     defaultConfig {
         applicationId = "com.wanderwildwood.shoka"
-        // Built for the Pixel 4a (Android 13); nothing here needs anything newer than 10.
-        minSdk = 29
-        targetSdk = 35
+        // The Kompakt runs Android 12 (API 31), and the same APK runs on the Pixel.
+        minSdk = 31
+        targetSdk = 31
         versionCode = 1
         versionName = "0.1.0"
     }
@@ -56,6 +56,11 @@ android {
         }
     }
 
+    lint {
+        // Sideloaded, not going to Google Play, whose API-33 floor this otherwise trips.
+        disable += "ExpiredTargetSdkVersion"
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -87,6 +92,8 @@ dependencies {
     implementation(libs.compose.ui)
     implementation(libs.compose.foundation)
     implementation(libs.compose.material3)
+
+    implementation(libs.mmd)
 
     implementation(libs.camera.camera2)
     implementation(libs.camera.lifecycle)

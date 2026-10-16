@@ -2,7 +2,6 @@ package com.wanderwildwood.shoka.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -20,28 +19,19 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -52,6 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mudita.mmd.components.buttons.ButtonMMD
+import com.mudita.mmd.components.buttons.OutlinedButtonMMD
+import com.mudita.mmd.components.divider.HorizontalDividerMMD
+import com.mudita.mmd.components.lazy.LazyColumnMMD
+import com.mudita.mmd.components.text.TextMMD
+import com.mudita.mmd.components.text_field.TextFieldMMD
 import com.wanderwildwood.shoka.Book
 import com.wanderwildwood.shoka.CallNumber
 import com.wanderwildwood.shoka.Isbn
@@ -59,21 +55,7 @@ import com.wanderwildwood.shoka.Library
 import com.wanderwildwood.shoka.Placed
 import com.wanderwildwood.shoka.R
 import com.wanderwildwood.shoka.Status
-import kotlinx.coroutines.launch
 import zxingcpp.BarcodeReader
-
-private val Grey = Color(0xFF6B6B6B)
-private val Faint = Color(0xFFE4E4E4)
-
-private val colors = lightColorScheme(
-    primary = Color.Black, onPrimary = Color.White,
-    secondary = Color.Black, onSecondary = Color.White,
-    background = Color.White, onBackground = Color.Black,
-    surface = Color.White, onSurface = Color.Black,
-    surfaceVariant = Faint, onSurfaceVariant = Grey,
-    surfaceContainerHigh = Color.White, surfaceContainer = Color.White,
-    outline = Color.Black,
-)
 
 /** What the last scan did, shown under the camera until the next one. */
 sealed interface Event {
@@ -86,84 +68,82 @@ sealed interface Event {
 
 @Composable
 fun ShelfApp(lib: Library) {
-    MaterialTheme(colorScheme = colors) {
-        var tab by rememberSaveable { mutableStateOf(0) }
-        var editing by remember { mutableStateOf<Long?>(null) }
-        var event by remember { mutableStateOf<Event?>(null) }
-        val books by lib.books.collectAsStateWithLifecycle()
+    var tab by rememberSaveable { mutableStateOf(0) }
+    var editing by remember { mutableStateOf<Long?>(null) }
+    var event by remember { mutableStateOf<Event?>(null) }
+    var menu by remember { mutableStateOf(false) }
+    val books by lib.books.collectAsStateWithLifecycle()
 
-        Column(
-            Modifier.fillMaxSize().background(Color.White).systemBarsPadding().imePadding()
-        ) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Tab(stringResource(R.string.tab_scan), tab == 0) { tab = 0 }
-                Tab(stringResource(R.string.tab_shelf), tab == 1) { tab = 1 }
-                Spacer(Modifier.weight(1f))
-                Menu(lib)
-            }
-            HorizontalDivider(color = Color.Black)
-            when (tab) {
-                0 -> ScanScreen(lib, books, event, { event = it }, { editing = it })
-                else -> ShelfScreen(lib) { editing = it }
-            }
+    Column(
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).systemBarsPadding().imePadding()
+    ) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Tab(stringResource(R.string.tab_scan), tab == 0) { tab = 0 }
+            Tab(stringResource(R.string.tab_shelf), tab == 1) { tab = 1 }
+            Spacer(Modifier.weight(1f))
+            Tab(stringResource(R.string.menu), false) { menu = true }
         }
+        HorizontalDividerMMD(thickness = 2.dp)
+        when (tab) {
+            0 -> ScanScreen(lib, books, event, { event = it }, { editing = it })
+            else -> ShelfScreen(lib) { editing = it }
+        }
+    }
 
-        editing?.let { id ->
-            val book = books.firstOrNull { it.id == id }
-            if (book == null) editing = null
-            else EditDialog(lib, book) { editing = null }
-        }
+    if (menu) MenuDialog(lib) { menu = false }
+
+    editing?.let { id ->
+        val book = books.firstOrNull { it.id == id }
+        if (book == null) editing = null
+        else EditDialog(lib, book) { editing = null }
     }
 }
 
 @Composable
 private fun Tab(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(Modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 14.dp)) {
-        Text(
-            label,
-            fontSize = 17.sp,
+    Box(Modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 12.dp)) {
+        TextMMD(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            color = if (selected) Color.Black else Grey,
+            textDecoration = if (selected) androidx.compose.ui.text.style.TextDecoration.Underline else null,
         )
     }
 }
 
+/** Two or more choices side by side: the chosen one filled, the rest outlined. */
 @Composable
-private fun Menu(lib: Library) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var open by remember { mutableStateOf(false) }
-    val exported = stringResource(R.string.exported)
-    val exportFailed = stringResource(R.string.export_failed)
-    val importFailed = stringResource(R.string.import_failed)
+fun Choice(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val m = modifier.height(44.dp)
+    if (selected) {
+        ButtonMMD(onClick = onClick, modifier = m) { TextMMD(text = label, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
+    } else {
+        OutlinedButtonMMD(onClick = onClick, modifier = m) { TextMMD(text = label, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
+    }
+}
 
-    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        if (uri != null) scope.launch {
-            val ok = lib.export(uri)
-            Toast.makeText(context, if (ok) exported else exportFailed, Toast.LENGTH_SHORT).show()
-        }
-    }
-    val load = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
-            val n = lib.import(uri)
-            val msg = if (n == null) importFailed else context.getString(R.string.imported, n)
-            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-        }
-    }
+/** A plain pressable line of text, for actions that don't need a button's weight. */
+@Composable
+fun Link(label: String, modifier: Modifier = Modifier, bold: Boolean = true, onClick: () -> Unit) {
+    TextMMD(
+        text = label,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
+        modifier = modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
+    )
+}
 
-    Box {
-        TextButton(onClick = { open = true }) { Text(stringResource(R.string.menu), color = Color.Black) }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.export_csv)) },
-                onClick = { open = false; save.launch("shelf-order.csv") },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.import_csv)) },
-                onClick = { open = false; load.launch(arrayOf("text/*", "application/csv", "application/octet-stream")) },
-            )
-        }
-    }
+@Composable
+private fun Small(text: String, modifier: Modifier = Modifier, mono: Boolean = false, maxLines: Int = 1) {
+    TextMMD(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        fontFamily = if (mono) FontFamily.Monospace else null,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
+    )
 }
 
 // ---------------------------------------------------------------- Scan
@@ -188,6 +168,7 @@ private fun ScanScreen(
     var torch by rememberSaveable { mutableStateOf(false) }
     var manual by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf(false) }
+    val system by lib.system.collectAsStateWithLifecycle()
 
     val feedback = remember { Feedback(context) }
     DisposableEffect(Unit) { onDispose { feedback.release() } }
@@ -203,8 +184,10 @@ private fun ScanScreen(
         }
     }
 
+    // The Kompakt's screen is 610dp tall, the Pixel's 850: the camera takes what is spare.
+    val tall = LocalConfiguration.current.screenHeightDp > 700
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().height(230.dp).clipToBounds().background(Color.Black)) {
+        Box(Modifier.fillMaxWidth().height(if (tall) 230.dp else 150.dp).clipToBounds().background(Color.Black)) {
             if (granted) {
                 Scanner(Modifier.fillMaxSize(), torch) { code ->
                     val isbn = if (code.format == BarcodeReader.Format.EAN_13) Isbn.normalize(code.text) else null
@@ -219,17 +202,18 @@ private fun ScanScreen(
                         .clickable { torch = !torch }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Text(stringResource(R.string.light), color = if (torch) Color.Black else Color.White)
+                    TextMMD(text = stringResource(R.string.light), color = if (torch) Color.Black else Color.White)
                 }
             } else {
                 Column(
-                    Modifier.align(Alignment.Center).padding(24.dp),
+                    Modifier.align(Alignment.Center).padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(stringResource(R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center)
-                    TextButton(onClick = { ask.launch(Manifest.permission.CAMERA) }) {
-                        Text(stringResource(R.string.camera_allow), color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+                    TextMMD(text = stringResource(R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center)
+                    TextMMD(
+                        text = stringResource(R.string.camera_allow), color = Color.White, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { ask.launch(Manifest.permission.CAMERA) }.padding(12.dp),
+                    )
                 }
             }
         }
@@ -239,30 +223,25 @@ private fun ScanScreen(
             Choice(stringResource(R.string.mode_find), findMode, Modifier.weight(1f)) { findMode = true; setEvent(null) }
         }
 
-        Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Box(Modifier.fillMaxWidth().height(if (tall) 150.dp else 112.dp).padding(horizontal = 16.dp)) {
             EventCard(lib, books, event, findMode, setEvent, open)
         }
 
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-            TextButton(onClick = { manual = true }) { Text(stringResource(R.string.type_number), color = Color.Black) }
-            TextButton(onClick = { search = true }) { Text(stringResource(R.string.search_title), color = Color.Black) }
+        Row(Modifier.fillMaxWidth()) {
+            Link(stringResource(R.string.type_number)) { manual = true }
+            Link(stringResource(R.string.search_title)) { search = true }
         }
 
-        HorizontalDivider(color = Faint)
-        val system by lib.system.collectAsStateWithLifecycle()
+        HorizontalDividerMMD(thickness = 1.dp)
         val recent = remember(books) { books.sortedByDescending { it.added }.take(60) }
-        LazyColumn(Modifier.weight(1f)) {
-            item {
-                Text(
-                    stringResource(R.string.recent), color = Grey, fontSize = 13.sp,
-                    modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 4.dp),
-                )
-            }
-            items(recent, key = { it.id }) { b ->
-                Column(Modifier.fillMaxWidth().clickable { open(b.id) }.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Text(b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(statusLine(b, system), color = Grey, fontSize = 13.sp, fontFamily = callFont(b, system))
+        LazyColumnMMD(Modifier.weight(1f), isScrollbarVisible = false) {
+            items(recent.size, key = { recent[it].id }) { i ->
+                val b = recent[i]
+                Column(Modifier.fillMaxWidth().clickable { open(b.id) }.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Small(statusLine(b, system), mono = hasCall(b, system))
                 }
+                HorizontalDividerMMD(thickness = 1.dp)
             }
         }
     }
@@ -277,19 +256,6 @@ private fun ScanScreen(
 }
 
 @Composable
-private fun Choice(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Box(
-        modifier.border(1.dp, Color.Black)
-            .background(if (selected) Color.Black else Color.White)
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = if (selected) Color.White else Color.Black, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
 private fun statusLine(b: Book, system: CallNumber.System): String = when (b.status) {
     Status.LOOKING -> stringResource(R.string.looking_up)
     Status.OFFLINE -> stringResource(R.string.offline)
@@ -298,8 +264,8 @@ private fun statusLine(b: Book, system: CallNumber.System): String = when (b.sta
         .filter { it.isNotEmpty() }.joinToString("  ·  ")
 }
 
-private fun callFont(b: Book, system: CallNumber.System) =
-    if (b.status == Status.FOUND && b.callNumber(system).isNotEmpty()) FontFamily.Monospace else FontFamily.Default
+private fun hasCall(b: Book, system: CallNumber.System) =
+    b.status == Status.FOUND && b.callNumber(system).isNotEmpty()
 
 @Composable
 private fun EventCard(
@@ -312,52 +278,50 @@ private fun EventCard(
 ) {
     val system by lib.system.collectAsStateWithLifecycle()
     val shelf by lib.shelf.collectAsStateWithLifecycle()
-    val modifier = Modifier.fillMaxWidth().height(150.dp)
+    val title = MaterialTheme.typography.titleMedium
 
     when (event) {
-        null -> Text(
-            stringResource(if (findMode) R.string.hint_find else R.string.hint_add),
-            color = Grey, modifier = modifier.padding(top = 8.dp),
-        )
+        null -> Small(stringResource(if (findMode) R.string.hint_find else R.string.hint_add), maxLines = 5)
 
-        Event.NotIsbn -> Text(stringResource(R.string.not_isbn), modifier = modifier.padding(top = 8.dp))
+        Event.NotIsbn -> TextMMD(text = stringResource(R.string.not_isbn), style = MaterialTheme.typography.bodySmall)
 
-        is Event.Unknown -> Column(modifier.padding(top = 8.dp)) {
-            Text(stringResource(R.string.not_catalogued), fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text(event.isbn, color = Grey, fontFamily = FontFamily.Monospace)
-            TextButton(onClick = { setEvent(Event.Added(lib.addIsbn(event.isbn).id)) }) {
-                Text(stringResource(R.string.add_it), color = Color.Black, fontWeight = FontWeight.Bold)
+        is Event.Unknown -> Column {
+            TextMMD(text = stringResource(R.string.not_catalogued), style = title, fontWeight = FontWeight.Bold)
+            Small(event.isbn, mono = true)
+            Link(stringResource(R.string.add_it), Modifier.padding(top = 4.dp)) {
+                setEvent(Event.Added(lib.addIsbn(event.isbn).id))
             }
         }
 
         is Event.Added -> {
             val b = books.firstOrNull { it.id == event.id } ?: return
-            Column(modifier.clickable { open(b.id) }.padding(top = 8.dp)) {
-                Text(
-                    b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, fontSize = 20.sp,
+            Column(Modifier.fillMaxSize().clickable { open(b.id) }) {
+                TextMMD(
+                    text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, style = title,
                     fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 )
-                if (b.author.isNotEmpty()) Text(b.author, color = Grey, maxLines = 1)
+                if (b.author.isNotEmpty()) Small(b.author)
                 Spacer(Modifier.height(6.dp))
-                Text(
-                    statusLine(b, system).substringBefore("  ·  "),
-                    fontSize = 18.sp, fontFamily = callFont(b, system),
+                TextMMD(
+                    text = statusLine(b, system).substringBefore("  ·  "),
+                    fontFamily = if (hasCall(b, system)) FontFamily.Monospace else null,
+                    fontWeight = FontWeight.Bold,
                 )
             }
         }
 
         is Event.Duplicate -> {
             val b = books.firstOrNull { it.id == event.id } ?: return
-            Column(modifier.padding(top = 8.dp)) {
-                Text(
-                    if (event.copyAdded) stringResource(R.string.copy_added, b.copies)
+            Column {
+                TextMMD(
+                    text = if (event.copyAdded) stringResource(R.string.copy_added, b.copies)
                     else stringResource(R.string.already_have) + "  " + stringResource(R.string.copies, b.copies),
-                    fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                    style = title, fontWeight = FontWeight.Bold,
                 )
-                Text(b.title.ifEmpty { b.isbn }, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (!event.copyAdded) TextButton(onClick = {
+                TextMMD(text = b.title.ifEmpty { b.isbn }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (!event.copyAdded) Link(stringResource(R.string.add_copy)) {
                     lib.addCopy(b.id); setEvent(Event.Duplicate(b.id, copyAdded = true))
-                }) { Text(stringResource(R.string.add_copy), color = Color.Black, fontWeight = FontWeight.Bold) }
+                }
             }
         }
 
@@ -365,26 +329,15 @@ private fun EventCard(
             val i = shelf.indexOfFirst { it.book.id == event.id }
             if (i < 0) return
             val p = shelf[i]
-            Column(modifier.clickable { open(p.book.id) }) {
+            Column(Modifier.fillMaxSize().clickable { open(p.book.id) }) {
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text(stringResource(R.string.position, p.position), fontSize = 44.sp, fontWeight = FontWeight.Bold)
+                    TextMMD(text = stringResource(R.string.position, p.position), fontSize = 40.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.of_total, shelf.size), color = Grey, modifier = Modifier.padding(bottom = 8.dp))
+                    TextMMD(text = stringResource(R.string.of_total, shelf.size), modifier = Modifier.padding(bottom = 6.dp))
                 }
-                Text(
-                    p.book.callNumber(system).ifEmpty { stringResource(R.string.no_call_number) } + "  ·  " + p.book.title,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    shelf.getOrNull(i - 1)?.let { stringResource(R.string.after, it.book.title) }
-                        ?: stringResource(R.string.first_on_shelf),
-                    color = Grey, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    shelf.getOrNull(i + 1)?.let { stringResource(R.string.before, it.book.title) }
-                        ?: stringResource(R.string.last_on_shelf),
-                    color = Grey, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                )
+                Small(p.book.callNumber(system).ifEmpty { stringResource(R.string.no_call_number) } + "  ·  " + p.book.title)
+                Small(shelf.getOrNull(i - 1)?.let { stringResource(R.string.after, it.book.title) } ?: stringResource(R.string.first_on_shelf))
+                Small(shelf.getOrNull(i + 1)?.let { stringResource(R.string.before, it.book.title) } ?: stringResource(R.string.last_on_shelf))
             }
         }
     }
@@ -422,25 +375,23 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
             }
         }
 
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Small(
                 buildList {
                     add(stringResource(R.string.summary, shelf.size))
                     if (looking > 0) add(stringResource(R.string.summary_looking, looking))
                     if (missing > 0) add(stringResource(R.string.summary_missing, missing))
                     if (offline > 0) add(stringResource(R.string.summary_offline, offline))
                 }.joinToString("  ·  "),
-                color = Grey, fontSize = 13.sp, modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f), maxLines = 2,
             )
-            if (missing + offline > 0) TextButton(onClick = { lib.retryAll() }) {
-                Text(stringResource(R.string.retry), color = Color.Black)
-            }
+            if (missing + offline > 0) Link(stringResource(R.string.retry)) { lib.retryAll() }
         }
 
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
+            TextFieldMMD(
                 value = query, onValueChange = { query = it }, singleLine = true,
-                placeholder = { Text(stringResource(R.string.filter)) },
+                placeholder = { TextMMD(text = stringResource(R.string.filter), style = MaterialTheme.typography.labelSmall) },
                 modifier = Modifier.weight(1f),
             )
             Spacer(Modifier.width(8.dp))
@@ -448,21 +399,23 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
         }
 
         if (shelf.isEmpty()) {
-            Text(stringResource(R.string.empty_shelf), color = Grey, modifier = Modifier.padding(16.dp))
+            TextMMD(text = stringResource(R.string.empty_shelf), modifier = Modifier.padding(16.dp))
         }
 
-        LazyColumn(Modifier.weight(1f).padding(top = 8.dp)) {
+        LazyColumnMMD(Modifier.weight(1f).padding(top = 8.dp), isScrollbarVisible = false) {
             items(shown.size, key = { shown[it].book.id }) { i ->
                 val p = shown[i]
                 if (!p.classified && (i == 0 || shown[i - 1].classified)) {
-                    Text(
-                        stringResource(if (system == CallNumber.System.LC) R.string.unclassified_lc else R.string.unclassified_dewey),
+                    HorizontalDividerMMD(thickness = 2.dp)
+                    TextMMD(
+                        text = stringResource(if (system == CallNumber.System.LC) R.string.unclassified_lc else R.string.unclassified_dewey),
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.fillMaxWidth().background(Faint).padding(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     )
+                    HorizontalDividerMMD(thickness = 2.dp)
                 }
                 ShelfRow(p, system) { open(p.book.id) }
-                HorizontalDivider(color = Faint)
+                HorizontalDividerMMD(thickness = 1.dp)
             }
         }
     }
@@ -471,22 +424,22 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
 @Composable
 private fun ShelfRow(p: Placed, system: CallNumber.System, onClick: () -> Unit) {
     val b = p.book
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp)) {
-        Text(
-            p.position.toString(), textAlign = TextAlign.End, fontWeight = FontWeight.Bold,
-            modifier = Modifier.width(48.dp).padding(end = 12.dp),
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 8.dp, vertical = 6.dp)) {
+        TextMMD(
+            text = p.position.toString(), textAlign = TextAlign.End, fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(48.dp).padding(end = 10.dp),
         )
         Column(Modifier.weight(1f)) {
             val call = b.callNumber(system)
-            if (call.isNotEmpty()) Text(call, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
-            Text(b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (call.isNotEmpty()) TextMMD(text = call, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val sub = buildList {
                 if (b.author.isNotEmpty()) add(b.author)
                 if (b.year.isNotEmpty()) add(b.year)
                 if (b.copies > 1) add("×${b.copies}")
                 if (b.status != Status.FOUND) add(statusLine(b, system))
             }.joinToString("  ·  ")
-            if (sub.isNotEmpty()) Text(sub, color = Grey, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (sub.isNotEmpty()) Small(sub)
         }
     }
 }

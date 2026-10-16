@@ -158,7 +158,11 @@ object Lookup {
 
     private fun fromMarc(f: Map<String, List<Map<Char, String>>>): Found {
         fun first(tag: String, code: Char) = f[tag]?.firstOrNull()?.get(code)?.trim() ?: ""
-        fun strip(s: String) = s.trim().trimEnd('/', ':', ';', ',', '.', ' ', '=').trim()
+        // MARC ends fields with punctuation for the next one; an initial's full stop stays.
+        fun strip(s: String): String {
+            val t = s.trim().trimEnd('/', ':', ';', ',', ' ', '=').trim()
+            return if (t.endsWith('.') && !Regex("""(^|[\s.])\p{L}\.$""").containsMatchIn(t)) t.dropLast(1).trim() else t
+        }
 
         val title = listOf(first("245", 'a'), first("245", 'b'))
             .map(::strip).filter { it.isNotEmpty() }.joinToString(": ")

@@ -1,23 +1,22 @@
 package com.wanderwildwood.shoka.ui
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -27,33 +26,64 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mudita.mmd.components.divider.HorizontalDividerMMD
+import com.mudita.mmd.components.lazy.LazyColumnMMD
+import com.mudita.mmd.components.text.TextMMD
+import com.mudita.mmd.components.text_field.TextFieldMMD
+import com.wanderwildwood.shoka.Account
 import com.wanderwildwood.shoka.Book
 import com.wanderwildwood.shoka.CallNumber
 import com.wanderwildwood.shoka.Found
 import com.wanderwildwood.shoka.Isbn
 import com.wanderwildwood.shoka.Lccn
 import com.wanderwildwood.shoka.Library
+import com.wanderwildwood.shoka.LoginFlow
 import com.wanderwildwood.shoka.Lookup
 import com.wanderwildwood.shoka.R
 import com.wanderwildwood.shoka.Status
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.IOException
-
-private val Grey = Color(0xFF6B6B6B)
+import java.text.DateFormat
+import java.util.Date
 
 @Composable
-private fun Action(label: String, bold: Boolean = false, onClick: () -> Unit) {
-    TextButton(onClick = onClick) {
-        Text(label, color = Color.Black, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal)
-    }
+private fun Title(text: String) {
+    TextMMD(text = text, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+    Spacer(Modifier.height(8.dp))
+}
+
+@Composable
+private fun Note(text: String) {
+    TextMMD(text = text, style = MaterialTheme.typography.labelSmall)
+}
+
+@Composable
+private fun Field(
+    value: String,
+    set: (String) -> Unit,
+    label: Int,
+    type: KeyboardType = KeyboardType.Text,
+    caps: KeyboardCapitalization = KeyboardCapitalization.Sentences,
+    secret: Boolean = false,
+) {
+    TextFieldMMD(
+        value = value, onValueChange = set, singleLine = true,
+        label = { TextMMD(text = stringResource(label), style = MaterialTheme.typography.labelSmall) },
+        keyboardOptions = KeyboardOptions(keyboardType = type, capitalization = caps),
+        visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+    )
 }
 
 /**
@@ -65,37 +95,24 @@ private fun Action(label: String, bold: Boolean = false, onClick: () -> Unit) {
 fun ManualDialog(lib: Library, dismiss: () -> Unit, done: (String?, Long?) -> Unit) {
     var text by remember { mutableStateOf("") }
     var bad by remember { mutableStateOf(false) }
-    AlertDialog(
-        onDismissRequest = dismiss,
-        containerColor = Color.White,
-        title = { Text(stringResource(R.string.manual_title)) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = text, onValueChange = { text = it; bad = false }, singleLine = true,
-                    label = { Text(stringResource(R.string.manual_label)) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
-                    isError = bad,
-                )
-                if (bad) Text(stringResource(R.string.manual_bad), color = Color.Black, fontSize = 13.sp)
-            }
-        },
-        confirmButton = {
-            Action(stringResource(R.string.add), bold = true) {
-                val isbn = Isbn.normalize(text)
-                val lccn = if (isbn == null) Lccn.normalize(text) else null
-                when {
-                    isbn != null -> { done(isbn, null); dismiss() }
-                    lccn != null -> {
-                        val id = (lib.findLccn(lccn) ?: lib.addLccn(lccn)).id
-                        done(null, id); dismiss()
-                    }
-                    else -> bad = true
+    EInkDialog(onDismiss = dismiss) {
+        Title(stringResource(R.string.manual_title))
+        Field(text, { text = it; bad = false }, R.string.manual_label, KeyboardType.Ascii, KeyboardCapitalization.None)
+        if (bad) Note(stringResource(R.string.manual_bad))
+        Spacer(Modifier.height(8.dp))
+        DialogButton(stringResource(R.string.add), filled = true) {
+            val isbn = Isbn.normalize(text)
+            val lccn = if (isbn == null) Lccn.normalize(text) else null
+            when {
+                isbn != null -> { done(isbn, null); dismiss() }
+                lccn != null -> {
+                    done(null, (lib.findLccn(lccn) ?: lib.addLccn(lccn)).id); dismiss()
                 }
+                else -> bad = true
             }
-        },
-        dismissButton = { Action(stringResource(R.string.cancel), onClick = dismiss) },
-    )
+        }
+        DialogButton(stringResource(R.string.cancel), onClick = dismiss)
+    }
 }
 
 /** For books with no ISBN: search the LoC by title and author, or add the book by hand. */
@@ -108,70 +125,52 @@ fun SearchDialog(lib: Library, dismiss: () -> Unit, added: (Long, Boolean) -> Un
     var offline by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    AlertDialog(
-        onDismissRequest = dismiss,
-        containerColor = Color.White,
-        title = { Text(stringResource(R.string.search_heading), fontSize = 18.sp) },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = title, onValueChange = { title = it }, singleLine = true,
-                    label = { Text(stringResource(R.string.field_title)) },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                )
-                OutlinedTextField(
-                    value = author, onValueChange = { author = it }, singleLine = true,
-                    label = { Text(stringResource(R.string.field_author)) },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                )
-                Spacer(Modifier.padding(4.dp))
-                when {
-                    busy -> Text(stringResource(R.string.searching), color = Grey)
-                    offline -> Text(stringResource(R.string.search_offline), color = Grey)
-                    results?.isEmpty() == true -> Text(stringResource(R.string.search_none), color = Grey)
-                }
-                results?.takeIf { it.isNotEmpty() }?.let { list ->
-                    LazyColumn(Modifier.heightIn(max = 300.dp)) {
-                        items(list) { f ->
-                            Column(
-                                Modifier.fillMaxWidth().clickable {
-                                    added(lib.addFound(f).id, false); dismiss()
-                                }.padding(vertical = 8.dp)
-                            ) {
-                                Text(f.title, fontWeight = FontWeight.Medium)
-                                Text(
-                                    listOf(f.author, f.year, f.lc).filter { it.isNotEmpty() }.joinToString("  ·  "),
-                                    color = Grey, fontSize = 13.sp,
-                                )
-                            }
-                            HorizontalDivider()
-                        }
+    EInkDialog(onDismiss = dismiss) {
+        Title(stringResource(R.string.search_heading))
+        Field(title, { title = it }, R.string.field_title, caps = KeyboardCapitalization.Words)
+        Field(author, { author = it }, R.string.field_author, caps = KeyboardCapitalization.Words)
+        Spacer(Modifier.height(6.dp))
+        when {
+            busy -> Note(stringResource(R.string.searching))
+            offline -> Note(stringResource(R.string.search_offline))
+            results?.isEmpty() == true -> Note(stringResource(R.string.search_none))
+        }
+        results?.takeIf { it.isNotEmpty() }?.let { list ->
+            LazyColumnMMD(Modifier.heightIn(max = 220.dp), isScrollbarVisible = false) {
+                items(list.size) { i ->
+                    val f = list[i]
+                    Column(
+                        Modifier.fillMaxWidth().clickable { added(lib.addFound(f).id, false); dismiss() }
+                            .padding(vertical = 6.dp)
+                    ) {
+                        TextMMD(text = f.title, fontWeight = FontWeight.Medium, maxLines = 2)
+                        Note(listOf(f.author, f.year, f.lc).filter { it.isNotEmpty() }.joinToString("  ·  "))
                     }
-                }
-                if (results != null && title.isNotBlank()) {
-                    Action(stringResource(R.string.add_by_hand)) {
-                        added(lib.addByHand(title, author).id, true); dismiss()
-                    }
+                    HorizontalDividerMMD(thickness = 1.dp)
                 }
             }
-        },
-        confirmButton = {
-            Action(stringResource(R.string.search), bold = true) {
-                busy = true; offline = false
-                scope.launch {
-                    results = try {
-                        Lookup.search(title, author)
-                    } catch (e: IOException) {
-                        offline = true; emptyList()
-                    } catch (e: Exception) {
-                        emptyList()
-                    }
-                    busy = false
-                }
+        }
+        if (results != null && title.isNotBlank()) {
+            Link(stringResource(R.string.add_by_hand), bold = false) {
+                added(lib.addByHand(title, author).id, true); dismiss()
             }
-        },
-        dismissButton = { Action(stringResource(R.string.close), onClick = dismiss) },
-    )
+        }
+        Spacer(Modifier.height(6.dp))
+        DialogButton(stringResource(R.string.search), filled = true) {
+            busy = true; offline = false
+            scope.launch {
+                results = try {
+                    Lookup.search(title, author)
+                } catch (e: IOException) {
+                    offline = true; emptyList()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                busy = false
+            }
+        }
+        DialogButton(stringResource(R.string.close), onClick = dismiss)
+    }
 }
 
 /** Everything about one book, editable; corrections here are what the shelf order uses. */
@@ -198,60 +197,181 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
 
     fun edited() = book.copy(
         title = title.trim(), author = author.trim(), year = year.trim(),
-        lc = lc.trim().uppercase(), ddc = ddc.trim(), copies = copies,
+        lc = lc.trim().replace(Regex("""\s+"""), " "), ddc = ddc.trim(), copies = copies,
         status = if (book.status == Status.NOT_FOUND && (lc.isNotBlank() || ddc.isNotBlank())) Status.FOUND else book.status,
         source = if (lc != book.lc || ddc != book.ddc) "edited" else book.source,
     )
 
-    AlertDialog(
-        onDismissRequest = dismiss,
-        containerColor = Color.White,
-        title = { Text(stringResource(R.string.edit_heading)) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                Field(title, { title = it }, R.string.field_title)
-                Field(author, { author = it }, R.string.field_author)
-                Field(year, { year = it }, R.string.field_year, KeyboardType.Number)
-                Field(lc, { lc = it }, R.string.field_lc)
-                if (lc.isNotBlank() && CallNumber.lcKey(lc) == null) {
-                    Text(stringResource(R.string.lc_invalid), color = Grey, fontSize = 12.sp)
-                }
-                Field(ddc, { ddc = it }, R.string.field_dewey)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.field_copies))
-                    Spacer(Modifier.width(12.dp))
-                    Action("−") { if (copies > 1) copies-- }
-                    Text(copies.toString(), fontWeight = FontWeight.Bold)
-                    Action("+") { copies++ }
-                }
-                val ids = listOfNotNull(
-                    book.isbn.takeIf { it.isNotEmpty() }?.let { "ISBN $it" },
-                    book.lccn.takeIf { it.isNotEmpty() }?.let { "LCCN $it" },
-                ).joinToString("  ·  ")
-                if (ids.isNotEmpty()) Text(ids, color = Grey, fontSize = 13.sp)
-                if (book.source.isNotEmpty()) Text(stringResource(R.string.source, book.source), color = Grey, fontSize = 13.sp)
-                Row {
-                    if (book.isbn.isNotEmpty() || book.lccn.isNotEmpty()) {
-                        Action(stringResource(R.string.look_again)) { lib.update(edited()); lib.retry(book.id); dismiss() }
+    EInkDialog(onDismiss = dismiss) {
+        Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState())) {
+            Field(title, { title = it }, R.string.field_title)
+            Field(author, { author = it }, R.string.field_author)
+            Field(year, { year = it }, R.string.field_year, KeyboardType.Number)
+            Field(lc, { lc = it }, R.string.field_lc, caps = KeyboardCapitalization.Characters)
+            if (lc.isNotBlank() && CallNumber.lcKey(lc) == null) Note(stringResource(R.string.lc_invalid))
+            Field(ddc, { ddc = it }, R.string.field_dewey, KeyboardType.Decimal)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextMMD(text = stringResource(R.string.field_copies))
+                Spacer(Modifier.weight(1f))
+                Link("−") { if (copies > 1) copies-- }
+                TextMMD(text = copies.toString(), fontWeight = FontWeight.Bold)
+                Link("+") { copies++ }
+            }
+            val ids = listOfNotNull(
+                book.isbn.takeIf { it.isNotEmpty() }?.let { "ISBN $it" },
+                book.lccn.takeIf { it.isNotEmpty() }?.let { "LCCN $it" },
+            ).joinToString("  ·  ")
+            if (ids.isNotEmpty()) Note(ids)
+            if (book.source.isNotEmpty()) Note(stringResource(R.string.source, book.source))
+            Spacer(Modifier.height(8.dp))
+            DialogButton(stringResource(R.string.save), filled = true) { lib.update(edited()); dismiss() }
+            if (book.isbn.isNotEmpty() || book.lccn.isNotEmpty()) {
+                DialogButton(stringResource(R.string.look_again)) { lib.update(edited()); lib.retry(book.id); dismiss() }
+            }
+            DialogButton(stringResource(if (armed) R.string.delete_armed else R.string.delete), filled = armed) {
+                if (armed) { lib.delete(book.id); dismiss() } else armed = true
+            }
+            DialogButton(stringResource(R.string.cancel), onClick = dismiss)
+        }
+    }
+}
+
+/** The overflow: syncing, and the spreadsheet in and out. */
+@Composable
+fun MenuDialog(lib: Library, dismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var cloud by remember { mutableStateOf(false) }
+    val exported = stringResource(R.string.exported)
+    val exportFailed = stringResource(R.string.export_failed)
+    val importFailed = stringResource(R.string.import_failed)
+
+    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) scope.launch {
+            val ok = lib.export(uri)
+            Toast.makeText(context, if (ok) exported else exportFailed, Toast.LENGTH_SHORT).show()
+            dismiss()
+        }
+    }
+    val load = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            val n = lib.import(uri)
+            val msg = if (n == null) importFailed else context.getString(R.string.imported, n)
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            dismiss()
+        }
+    }
+
+    if (cloud) {
+        CloudDialog(lib) { cloud = false }
+        return
+    }
+    EInkDialog(onDismiss = dismiss) {
+        Title(stringResource(R.string.menu))
+        DialogButton(stringResource(R.string.cloud_heading)) { cloud = true }
+        DialogButton(stringResource(R.string.export_csv)) { save.launch("shelf-order.csv") }
+        DialogButton(stringResource(R.string.import_csv)) {
+            load.launch(arrayOf("text/*", "application/csv", "application/octet-stream"))
+        }
+        DialogButton(stringResource(R.string.close), onClick = dismiss)
+    }
+}
+
+/**
+ * Nextcloud: sign in through the server's own page when this phone has a browser, or with
+ * an app password typed in when it doesn't (the Kompakt may not).
+ */
+@Composable
+fun CloudDialog(lib: Library, dismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val account by lib.account.collectAsStateWithLifecycle()
+    val folder by lib.folder.collectAsStateWithLifecycle()
+    val state by lib.syncState.collectAsStateWithLifecycle()
+    val last by lib.lastSync.collectAsStateWithLifecycle()
+
+    var server by remember { mutableStateOf("") }
+    var user by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var typed by remember { mutableStateOf(false) }
+    var waiting by remember { mutableStateOf(false) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    var newFolder by remember(folder) { mutableStateOf(folder) }
+    val noBrowser = stringResource(R.string.cloud_no_browser)
+    val unreachable = stringResource(R.string.cloud_unreachable)
+
+    EInkDialog(onDismiss = dismiss) {
+        Column(Modifier.heightIn(max = 540.dp).verticalScroll(rememberScrollState())) {
+            Title(stringResource(R.string.cloud_heading))
+            val a = account
+            if (a != null) {
+                Note(stringResource(R.string.cloud_signed_in, a.user, a.server.removePrefix("https://")))
+                Note(
+                    when (state) {
+                        Library.SyncState.SYNCING -> stringResource(R.string.cloud_syncing)
+                        Library.SyncState.FAILED -> stringResource(R.string.cloud_failed)
+                        else -> if (last == 0L) "" else stringResource(
+                            R.string.cloud_last, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(last))
+                        )
                     }
-                    Spacer(Modifier.weight(1f))
-                    Action(stringResource(if (armed) R.string.delete_armed else R.string.delete), bold = armed) {
-                        if (armed) { lib.delete(book.id); dismiss() } else armed = true
+                )
+                Spacer(Modifier.height(6.dp))
+                Field(newFolder, { newFolder = it }, R.string.cloud_folder, caps = KeyboardCapitalization.None)
+                Note(stringResource(R.string.cloud_folder_note))
+                Spacer(Modifier.height(6.dp))
+                if (newFolder.trim().trim('/') != folder) {
+                    DialogButton(stringResource(R.string.cloud_use_folder), filled = true) { lib.setFolder(newFolder) }
+                }
+                DialogButton(stringResource(R.string.cloud_sync_now), filled = true) { lib.syncNow() }
+                DialogButton(stringResource(R.string.cloud_sign_out)) { lib.signOut() }
+            } else {
+                Note(stringResource(R.string.cloud_explain))
+                Spacer(Modifier.height(6.dp))
+                Field(server, { server = it; problem = null }, R.string.cloud_server, KeyboardType.Uri, KeyboardCapitalization.None)
+                if (typed) {
+                    Field(user, { user = it }, R.string.cloud_user, caps = KeyboardCapitalization.None)
+                    Field(password, { password = it }, R.string.cloud_app_password, KeyboardType.Password, KeyboardCapitalization.None, secret = true)
+                    Note(stringResource(R.string.cloud_app_password_note))
+                }
+                problem?.let { Note(it) }
+                if (waiting) Note(stringResource(R.string.cloud_waiting))
+                Spacer(Modifier.height(6.dp))
+                if (!typed) {
+                    DialogButton(stringResource(R.string.cloud_sign_in), filled = true) {
+                        if (server.isBlank() || waiting) return@DialogButton
+                        scope.launch {
+                            val started = runCatching { withContext(Dispatchers.IO) { LoginFlow.start(server) } }.getOrNull()
+                            if (started == null) { problem = unreachable; return@launch }
+                            val opened = runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(started.loginUrl)))
+                            }.isSuccess
+                            if (!opened) { problem = noBrowser; typed = true; return@launch }
+                            waiting = true
+                            // The server gives twenty minutes to finish signing in.
+                            repeat(600) {
+                                delay(2000)
+                                val got = runCatching { withContext(Dispatchers.IO) { LoginFlow.poll(started) } }.getOrNull()
+                                if (got != null) { waiting = false; lib.signIn(got); return@launch }
+                            }
+                            waiting = false
+                        }
+                    }
+                    DialogButton(stringResource(R.string.cloud_type_password)) { typed = true }
+                } else {
+                    DialogButton(stringResource(R.string.cloud_sign_in), filled = true) {
+                        if (server.isBlank() || user.isBlank() || password.isEmpty()) return@DialogButton
+                        lib.signIn(Account(LoginFlow.normalise(server), user.trim(), password.trim()))
                     }
                 }
             }
-        },
-        confirmButton = { Action(stringResource(R.string.save), bold = true) { lib.update(edited()); dismiss() } },
-        dismissButton = { Action(stringResource(R.string.cancel), onClick = dismiss) },
-    )
+            DialogButton(stringResource(R.string.close), onClick = dismiss)
+        }
+    }
 }
 
+/** A full-width button inside a dialog. */
 @Composable
-private fun Field(value: String, set: (String) -> Unit, label: Int, type: KeyboardType = KeyboardType.Text) {
-    OutlinedTextField(
-        value = value, onValueChange = set, singleLine = true,
-        label = { Text(stringResource(label)) },
-        keyboardOptions = KeyboardOptions(keyboardType = type, capitalization = KeyboardCapitalization.Sentences),
-        modifier = Modifier.fillMaxWidth(),
-    )
+fun DialogButton(text: String, filled: Boolean = false, onClick: () -> Unit) {
+    Choice(text, filled, Modifier.fillMaxWidth().padding(vertical = 3.dp), onClick)
 }
+

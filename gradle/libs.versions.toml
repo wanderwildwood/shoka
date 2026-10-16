@@ -2,6 +2,7 @@
 # Versions mirror Solitaire, so this builds against a Compose set already known to work here.
 agp = "8.13.1"
 kotlin = "2.2.21"
+mmd = "1.0.2"
 
 androidx-activity = "1.12.0"
 androidx-core = "1.17.0"
@@ -27,6 +28,8 @@ camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cam
 camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
 camera-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
 zxing-cpp = { module = "io.github.zxing-cpp:android", version.ref = "zxing-cpp" }
+
+mmd = { module = "com.mudita:MMD", version.ref = "mmd" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
 

@@ -18,6 +18,10 @@ data class Book(
     val status: Status = Status.LOOKING,
     val copies: Int = 1,
     val added: Long = 0,
+    /** When this record last changed on any phone; the newer of two copies wins a sync. */
+    val modified: Long = 0,
+    /** Kept, not dropped, so a sync tells the other phones it was deleted. */
+    val deleted: Boolean = false,
 ) {
     fun callNumber(system: CallNumber.System) = if (system == CallNumber.System.LC) lc else ddc
 
@@ -37,7 +41,7 @@ data class Book(
         put("id", id); put("isbn", isbn); put("lccn", lccn); put("title", title)
         put("author", author); put("year", year); put("lc", lc); put("ddc", ddc)
         put("source", source); put("status", status.name); put("copies", copies)
-        put("added", added)
+        put("added", added); put("modified", modified); put("deleted", deleted)
     }
 
     companion object {
@@ -55,6 +59,8 @@ data class Book(
                 .getOrDefault(Status.FOUND),
             copies = o.optInt("copies", 1),
             added = o.optLong("added"),
+            modified = o.optLong("modified", o.optLong("added")),
+            deleted = o.optBoolean("deleted"),
         )
 
         fun listToJson(books: List<Book>) = JSONArray().apply { books.forEach { put(it.toJson()) } }
@@ -72,7 +78,7 @@ object Shelf {
      * numbered ones, by author and then title, so they still have a place to stand.
      */
     fun order(books: List<Book>, system: CallNumber.System): List<Placed> {
-        val keyed = books.map { it to CallNumber.key(it.callNumber(system), system) }
+        val keyed = books.filterNot { it.deleted }.map { it to CallNumber.key(it.callNumber(system), system) }
         val byName = compareBy<Book>({ it.authorSort }, { it.titleSort }, { it.id })
         val classified = keyed.filter { it.second != null }
             .sortedWith(compareBy<Pair<Book, String?>> { it.second }.thenBy(byName) { it.first })

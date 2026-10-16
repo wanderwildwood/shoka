@@ -50,7 +50,7 @@
     <string name="system_lc">Library of Congress</string>
     <string name="system_dewey">Dewey</string>
     <string name="filter">Search the catalogue</string>
-    <string name="needs_attention">Needs attention</string>
+    <string name="needs_attention">To fix</string>
     <string name="unclassified_lc">No LC number — by author</string>
     <string name="unclassified_dewey">No Dewey number — by author</string>
     <string name="empty_shelf">Nothing catalogued yet.</string>
@@ -91,4 +91,25 @@
     <string name="delete">Delete</string>
     <string name="delete_armed">Tap again to delete</string>
     <string name="lc_invalid">Not an LC call number; it will sort with the unnumbered books.</string>
+
+    <string name="cloud_heading">Nextcloud</string>
+    <string name="cloud_explain">Keep the catalogue in your Nextcloud, so every phone signed in to the same folder has the same books. A spreadsheet of the shelf order is written beside it.</string>
+    <string name="cloud_server">Server address</string>
+    <string name="cloud_sign_in">Sign in</string>
+    <string name="cloud_type_password">Type an app password instead</string>
+    <string name="cloud_user">Login name</string>
+    <string name="cloud_app_password">App password</string>
+    <string name="cloud_app_password_note">Make one in Nextcloud under Settings, Security, Devices and sessions.</string>
+    <string name="cloud_waiting">Finish signing in in the browser; this waits for it.</string>
+    <string name="cloud_no_browser">There is no browser on this phone. Type an app password instead.</string>
+    <string name="cloud_unreachable">Couldn\'t reach that server.</string>
+    <string name="cloud_signed_in">%1$s on %2$s</string>
+    <string name="cloud_syncing">Syncing…</string>
+    <string name="cloud_failed">The last sync didn\'t go through. It will try again after the next change.</string>
+    <string name="cloud_last">Last synced %1$s</string>
+    <string name="cloud_folder">Folder</string>
+    <string name="cloud_folder_note">To share the catalogue, share this folder in Nextcloud and sign the other phone in to it.</string>
+    <string name="cloud_use_folder">Use this folder</string>
+    <string name="cloud_sync_now">Sync now</string>
+    <string name="cloud_sign_out">Sign out</string>
 </resources>

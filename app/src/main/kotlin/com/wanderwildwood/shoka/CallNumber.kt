@@ -12,7 +12,9 @@ object CallNumber {
 
     /** A tidy LC call number for display, or "" if [raw] is not one. */
     fun cleanLc(raw: String): String {
-        val s = raw.trim().uppercase().replace(Regex("""\s+"""), " ")
+        // Case kept as catalogued: LoC writes work marks in lower case ("Ho"), and sorting
+        // upper-cases for itself.
+        val s = raw.trim().replace(Regex("""\s+"""), " ")
         return if (lcKey(s) != null) s else ""
     }
 
