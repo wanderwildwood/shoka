@@ -257,23 +257,23 @@ private fun ScanScreen(
 private fun statusLine(b: Book, system: CallNumber.System): String = when (b.status) {
     Status.LOOKING -> stringResource(R.string.looking_up)
     Status.OFFLINE -> stringResource(R.string.offline)
-    Status.NOT_FOUND -> b.callNumber(system).ifEmpty { stringResource(R.string.not_found) }
+    Status.NOT_FOUND -> b.ddc.ifEmpty { stringResource(R.string.not_found) }
     Status.FOUND -> listOf(
         if (system == CallNumber.System.SECTIONS) sectionName(Shelf.section(b))
-        else b.callNumber(system).ifEmpty { stringResource(R.string.no_call_number) },
+        else b.ddc.ifEmpty { stringResource(R.string.no_call_number) },
         b.author,
     ).filter { it.isNotEmpty() }.joinToString("  ·  ")
 }
 
 private fun hasCall(b: Book, system: CallNumber.System) =
-    b.status == Status.FOUND && system != CallNumber.System.SECTIONS && b.callNumber(system).isNotEmpty()
+    b.status == Status.FOUND && system != CallNumber.System.SECTIONS && b.ddc.isNotEmpty()
 
 /** The heading for a [Placed.section]; [Library.sectionName] is the same outside Compose. */
 @Composable
 private fun sectionName(code: String): String = when (code) {
     Shelf.FICTION -> stringResource(R.string.section_fiction)
     "" -> stringResource(R.string.section_none)
-    else -> stringArrayResource(R.array.lc_classes)[Shelf.lcClasses.indexOf(code)]
+    else -> stringArrayResource(R.array.dewey_classes)[Shelf.deweyClasses.indexOf(code)]
 }
 
 @Composable
@@ -351,7 +351,7 @@ private fun PlaceCard(lib: Library, id: Long, open: (Long) -> Unit, foot: @Compo
                 Small(near(i - 1)?.let { stringResource(R.string.after, named(it.book)) } ?: stringResource(R.string.first_in_section, section))
                 Small(near(i + 1)?.let { stringResource(R.string.before, named(it.book)) } ?: stringResource(R.string.last_in_section, section))
             } else {
-                Small(p.book.callNumber(system).ifEmpty { stringResource(R.string.no_call_number) } + "  ·  " + p.book.title)
+                Small(p.book.ddc.ifEmpty { stringResource(R.string.no_call_number) } + "  ·  " + p.book.title)
                 Small(shelf.getOrNull(i - 1)?.let { stringResource(R.string.after, it.book.title) } ?: stringResource(R.string.first_on_shelf))
                 Small(shelf.getOrNull(i + 1)?.let { stringResource(R.string.before, it.book.title) } ?: stringResource(R.string.last_on_shelf))
             }
@@ -382,15 +382,12 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
         shelf.filter { p ->
             val b = p.book
             (!attention || b.status != Status.FOUND || !p.classified) &&
-                (q.isEmpty() || listOf(b.title, b.author, b.lc, b.ddc, b.isbn).any { it.lowercase().contains(q) })
+                (q.isEmpty() || listOf(b.title, b.author, b.ddc, b.isbn).any { it.lowercase().contains(q) })
         }
     }
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Choice(stringResource(R.string.system_lc), system == CallNumber.System.LC, Modifier.weight(1f)) {
-                lib.setSystem(CallNumber.System.LC)
-            }
             Choice(stringResource(R.string.system_dewey), system == CallNumber.System.DEWEY, Modifier.weight(1f)) {
                 lib.setSystem(CallNumber.System.DEWEY)
             }
@@ -442,7 +439,7 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
                 } else if (!p.classified && (i == 0 || shown[i - 1].classified)) {
                     HorizontalDividerMMD(thickness = 2.dp)
                     TextMMD(
-                        text = stringResource(if (system == CallNumber.System.LC) R.string.unclassified_lc else R.string.unclassified_dewey),
+                        text = stringResource(R.string.unclassified_dewey),
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     )
@@ -465,7 +462,7 @@ private fun ShelfRow(p: Placed, system: CallNumber.System, onClick: () -> Unit) 
         )
         Column(Modifier.weight(1f)) {
             // Sections shelves by author, so a call number here would only mislead.
-            val call = if (system == CallNumber.System.SECTIONS) "" else b.callNumber(system)
+            val call = if (system == CallNumber.System.SECTIONS) "" else b.ddc
             if (call.isNotEmpty()) TextMMD(text = call, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val sub = buildList {

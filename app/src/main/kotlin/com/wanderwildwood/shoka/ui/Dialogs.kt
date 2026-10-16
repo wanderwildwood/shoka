@@ -48,7 +48,6 @@ import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.text_field.TextFieldMMD
 import com.wanderwildwood.shoka.Account
 import com.wanderwildwood.shoka.Book
-import com.wanderwildwood.shoka.CallNumber
 import com.wanderwildwood.shoka.Found
 import com.wanderwildwood.shoka.Isbn
 import com.wanderwildwood.shoka.Lccn
@@ -153,7 +152,7 @@ fun SearchDialog(lib: Library, dismiss: () -> Unit, added: (Long, Boolean) -> Un
                             .padding(vertical = 6.dp)
                     ) {
                         TextMMD(text = f.title, fontWeight = FontWeight.Medium, maxLines = 2)
-                        Note(listOf(f.author, f.year, f.lc).filter { it.isNotEmpty() }.joinToString("  ·  "))
+                        Note(listOf(f.author, f.year, f.ddc).filter { it.isNotEmpty() }.joinToString("  ·  "))
                     }
                     HorizontalDividerMMD(thickness = 1.dp)
                 }
@@ -188,7 +187,6 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
     var title by remember(book.id) { mutableStateOf(book.title) }
     var author by remember(book.id) { mutableStateOf(book.author) }
     var year by remember(book.id) { mutableStateOf(book.year) }
-    var lc by remember(book.id) { mutableStateOf(book.lc) }
     var ddc by remember(book.id) { mutableStateOf(book.ddc) }
     var copies by remember(book.id) { mutableStateOf(book.copies) }
     var fiction by remember(book.id) { mutableStateOf(book.fiction) }
@@ -199,7 +197,6 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
         if (title.isEmpty()) title = book.title
         if (author.isEmpty()) author = book.author
         if (year.isEmpty()) year = book.year
-        if (lc.isEmpty()) lc = book.lc
         if (ddc.isEmpty()) ddc = book.ddc
     }
     // An armed delete disarms itself, so a stray tap later finds nothing live.
@@ -207,9 +204,9 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
 
     fun edited() = book.copy(
         title = title.trim(), author = author.trim(), year = year.trim(),
-        lc = lc.trim().replace(Regex("""\s+"""), " "), ddc = ddc.trim(), copies = copies, fiction = fiction,
-        status = if (book.status == Status.NOT_FOUND && (lc.isNotBlank() || ddc.isNotBlank())) Status.FOUND else book.status,
-        source = if (lc != book.lc || ddc != book.ddc) "edited" else book.source,
+        ddc = ddc.trim(), copies = copies, fiction = fiction,
+        status = if (book.status == Status.NOT_FOUND && ddc.isNotBlank()) Status.FOUND else book.status,
+        source = if (ddc != book.ddc) "edited" else book.source,
     )
 
     EInkDialog(onDismiss = dismiss) {
@@ -217,8 +214,6 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
             Field(title, { title = it }, R.string.field_title)
             Field(author, { author = it }, R.string.field_author)
             Field(year, { year = it }, R.string.field_year, KeyboardType.Number)
-            Field(lc, { lc = it }, R.string.field_lc, caps = KeyboardCapitalization.Characters)
-            if (lc.isNotBlank() && CallNumber.lcKey(lc) == null) Note(stringResource(R.string.lc_invalid))
             Field(ddc, { ddc = it }, R.string.field_dewey, KeyboardType.Decimal)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextMMD(text = stringResource(R.string.field_copies))
@@ -228,7 +223,7 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
                 Link("+") { copies++ }
             }
             // Follows the numbers as they are typed, until set here against them.
-            val guess = Book(id = 0, lc = lc, ddc = ddc).fictionGuess
+            val guess = Book(id = 0, lc = book.lc, ddc = ddc).fictionGuess
             val isFiction = fiction ?: guess
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextMMD(text = stringResource(R.string.field_fiction))

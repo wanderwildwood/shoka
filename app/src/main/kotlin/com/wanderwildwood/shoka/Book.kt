@@ -25,9 +25,6 @@ data class Book(
     /** Set by hand when [fictionGuess] is wrong; null means go by the guess. */
     val fiction: Boolean? = null,
 ) {
-    /** Sections shelves by author, but shows the LC number for reference. */
-    fun callNumber(system: CallNumber.System) = if (system == CallNumber.System.DEWEY) ddc else lc
-
     /**
      * Novels and stories, from the numbers: Dewey's fiction numbers (813 American, 823
      * English, 891.73 Russian, 895.63 Japanese, ...), fiction anthologies, and LC's PZ.
@@ -87,30 +84,32 @@ data class Book(
 
 /**
  * A book with its place on the shelf. [position] counts from 1. [section] is set only in
- * the Sections order: an LC class letter, [Shelf.FICTION], or "" for books with neither.
+ * the Sections order: a Dewey hundred ("5" for the 500s), [Shelf.FICTION], or "" for
+ * books with neither.
  */
 data class Placed(val book: Book, val position: Int, val classified: Boolean, val section: String = "")
 
 object Shelf {
     const val FICTION = "fiction"
 
-    /** The LC classes, in shelf order; I, O, W, X and Y are unused. */
-    val lcClasses = "ABCDEFGHJKLMNPQRSTUVZ".map { it.toString() }
+    /** Dewey's ten main classes, 000 to 900, by their first digit. */
+    val deweyClasses = (0..9).map { it.toString() }
 
-    /** Where a book stands in the Sections order: Fiction, its LC class letter, or "". */
+    /** Where a book stands in the Sections order: Fiction, its Dewey hundred, or "". */
     fun section(b: Book): String = when {
         b.isFiction -> FICTION
-        CallNumber.lcKey(b.lc) != null -> b.lc.trim().take(1).uppercase()
+        CallNumber.ddcKey(b.ddc) != null -> b.ddc.trim().take(1)
         else -> ""
     }
 
     /**
-     * Every book in shelf order. Books with no number in [system] go after all the
-     * numbered ones, by author and then title, so they still have a place to stand.
+     * Every book in shelf order. In Dewey, books with no number go after all the numbered
+     * ones, by author and then title, so they still have a place to stand; books with the
+     * same number go by author, as a library's would.
      */
     fun order(books: List<Book>, system: CallNumber.System): List<Placed> {
         if (system == CallNumber.System.SECTIONS) return bySection(books)
-        val keyed = books.filterNot { it.deleted }.map { it to CallNumber.key(it.callNumber(system), system) }
+        val keyed = books.filterNot { it.deleted }.map { it to CallNumber.ddcKey(it.ddc) }
         val classified = keyed.filter { it.second != null }
             .sortedWith(compareBy<Pair<Book, String?>> { it.second }.thenBy(byName) { it.first })
             .map { it.first }
@@ -120,11 +119,11 @@ object Shelf {
     }
 
     /**
-     * Fiction first, then each LC class from A to Z, then books with no class; by author
-     * and title within each. Coarse enough to keep by eye, with a label on each shelf.
+     * Fiction first, then each Dewey hundred from 000 to 900, then books with no number; by
+     * author and title within each. Coarse enough to keep by eye, with a label on each shelf.
      */
     private fun bySection(books: List<Book>): List<Placed> {
-        val rank = (listOf(FICTION) + lcClasses + "").withIndex().associate { it.value to it.index }
+        val rank = (listOf(FICTION) + deweyClasses + "").withIndex().associate { it.value to it.index }
         return books.filterNot { it.deleted }
             .map { it to section(it) }
             .sortedWith(compareBy<Pair<Book, String>> { rank.getValue(it.second) }.thenBy(byName) { it.first })

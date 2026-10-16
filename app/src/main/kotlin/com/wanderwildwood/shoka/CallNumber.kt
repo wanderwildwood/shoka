@@ -55,9 +55,10 @@ object CallNumber {
         return whole + "." + frac.padEnd(10, '0') + " " + rest.trim().uppercase()
     }
 
-    fun key(raw: String, system: System): String? =
-        if (system == System.DEWEY) ddcKey(raw) else lcKey(raw)
-
-    /** SECTIONS: by LC class letter, Fiction on its own, and author within each (see [Shelf]). */
-    enum class System { LC, DEWEY, SECTIONS }
+    /**
+     * The two shelf orders, both Dewey: the full number, or SECTIONS -- the ten hundreds,
+     * Fiction on its own, and author within each (see [Shelf]). LC numbers are still looked
+     * up and kept, but nothing is shelved by them.
+     */
+    enum class System { DEWEY, SECTIONS }
 }

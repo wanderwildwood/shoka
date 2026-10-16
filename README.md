@@ -2,9 +2,8 @@
 
 A book catalogue for the [Mudita Kompakt](https://mudita.com/products/kompakt/), made for
 taking a whole house of books off the shelves and putting them back in order. Scan the
-barcode on each book. Shelf finds the book's Library of Congress or Dewey call number and
-lists the whole collection in the order it goes back on the shelf. It will install on any
-Android 12 device with a camera.
+barcode on each book. Shelf finds the book's Dewey number and lists the whole collection in
+the order it goes back on the shelf. It will install on any Android 12 device with a camera.
 
 | | |
 |---|---|
@@ -31,18 +30,20 @@ connection comes back.
 
 ## Shelf order
 
-**LC**, **Dewey** or **Sections**, switched at the top of the list. LC numbers sort
-the way a library shelves them: class letters, then the class number, then each Cutter
-read as a decimal. Books with no number for the chosen system come after the numbered
-ones, by author and then by title.
+Two orders, both [Dewey](https://en.wikipedia.org/wiki/Dewey_Decimal_Classification), the
+scheme most libraries around the world use, switched at the top of the list.
+
+**Dewey** is the full number, read as a decimal (813.52 before 813.54), with books that
+share a number standing by author, as a library's do. Books with no Dewey number come
+after the numbered ones, by author and then by title.
 
 **Sections** is for a house rather than a library: no labels on the spines, and an order
-you can keep by eye. Fiction comes first, then each LC class (B Philosophy, psychology,
-religion; Q Science; and so on), and within each, books stand by author and then by title.
-A label on the edge of each shelf is enough. A book counts as fiction when its Dewey number
-is a fiction number (813, 823, 891.73 and the like) or its LC number is PZ; **Fiction** in a
-book's details overrules that either way. In this order, a scanned book's place names
-its section and the books either side of it within that section.
+you can keep by eye. Fiction comes first, then each of Dewey's ten hundreds (100
+Philosophy, 500 Science, 800 Literature and so on), and within each, books stand by author
+and then by title. A label on the edge of each shelf is enough. A book counts as fiction
+when its Dewey number is a fiction number (813, 823, 891.73 and the like); **Fiction** in a
+book's details overrules that either way. In this order, a scanned book's place names its
+section and the books either side of it within that section.
 
 **To fix** narrows the list to the books still to be looked up or that no catalogue knew,
 and the books with no call number. Tap any book to correct it, change the number of copies,

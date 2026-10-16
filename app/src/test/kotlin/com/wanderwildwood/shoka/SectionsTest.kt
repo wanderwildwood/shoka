@@ -24,18 +24,25 @@ class SectionsTest {
         assertTrue(Book(id = 1, lc = "PS3511.R94 P6", fiction = true).isFiction)
     }
 
-    @Test fun fictionThenClassLettersThenNoneByAuthorWithin() {
+    @Test fun fictionThenDeweyHundredsThenNoneByAuthorWithin() {
         val got = order(
-            Book(id = 1, title = "Cosmos", author = "Sagan, Carl", lc = "QB44.2 .S235"),
-            Book(id = 2, title = "Dune", author = "Herbert, Frank", lc = "PS3558.E63 D8", ddc = "813.54"),
-            Book(id = 3, title = "Walden", author = "Thoreau, Henry David", lc = "PS3048 .A1"),
-            Book(id = 4, title = "Emma", author = "Austen, Jane", lc = "PR4034 .E5", ddc = "823.7"),
+            Book(id = 1, title = "Cosmos", author = "Sagan, Carl", ddc = "520"),
+            Book(id = 2, title = "Dune", author = "Herbert, Frank", ddc = "813.54"),
+            Book(id = 3, title = "Walden", author = "Thoreau, Henry David", ddc = "818.303"),
+            Book(id = 4, title = "Emma", author = "Austen, Jane", ddc = "823.7"),
             Book(id = 5, title = "Family notes", author = "Anon"),
-            Book(id = 6, title = "Ethics", author = "Spinoza, Benedictus de", lc = "B3973 .E5"),
-            Book(id = 7, title = "A brief history of time", author = "Hawking, Stephen", lc = "QB981 .H377"),
+            Book(id = 6, title = "Ethics", author = "Spinoza, Benedictus de", ddc = "170"),
+            Book(id = 7, title = "A brief history of time", author = "Hawking, Stephen", ddc = "523.1"),
+            Book(id = 8, title = "Collected poems", author = "Auden, W. H.", ddc = "811.52"),
         )
         assertEquals(
-            listOf("Emma", "Dune", "Ethics", "Walden", "A brief history of time", "Cosmos", "Family notes"),
+            listOf(
+                "Emma", "Dune", // Fiction
+                "Ethics", // 100
+                "A brief history of time", "Cosmos", // 500, by author not number
+                "Collected poems", "Walden", // 800: poetry and essays stay in Literature
+                "Family notes", // no number
+            ),
             got,
         )
     }
@@ -43,20 +50,20 @@ class SectionsTest {
     @Test fun sectionsAndPositions() {
         val placed = Shelf.order(
             listOf(
-                Book(id = 1, title = "x", lc = "QB44.2 .S235"),
+                Book(id = 1, title = "x", ddc = "520"),
                 Book(id = 2, title = "y", ddc = "813.54"),
                 Book(id = 3, title = "z"),
             ),
             CallNumber.System.SECTIONS,
         )
-        assertEquals(listOf(Shelf.FICTION, "Q", ""), placed.map { it.section })
+        assertEquals(listOf(Shelf.FICTION, "5", ""), placed.map { it.section })
         assertEquals(listOf(1, 2, 3), placed.map { it.position })
         assertEquals(listOf(true, true, false), placed.map { it.classified })
     }
 
     @Test fun spreadsheetCarriesTheSectionAndTheFictionChoice() {
         val placed = Shelf.order(
-            listOf(Book(id = 1, title = "Zen", author = "Pirsig", lc = "CT275.P648 A3", fiction = true)),
+            listOf(Book(id = 1, title = "Zen", author = "Pirsig", ddc = "917.304", fiction = true)),
             CallNumber.System.SECTIONS,
         )
         val rows = Csv.parse(Csv.write(placed, CallNumber.System.SECTIONS) { if (it == Shelf.FICTION) "Fiction" else it })

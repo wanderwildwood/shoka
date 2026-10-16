@@ -49,7 +49,7 @@ object Lookup {
 
         val forms = listOfNotNull(isbn13, Isbn.to10(isbn13))
         val loc = forms.firstNotNullOfOrNull { form ->
-            attempt { sru("bath.isbn=$form", 3) }?.maxByOrNull { if (it.lc.isNotEmpty()) 1 else 0 }
+            attempt { sru("bath.isbn=$form", 3) }?.maxByOrNull { if (it.ddc.isNotEmpty()) 1 else 0 }
         }
         val ol = if (loc == null || loc.lc.isEmpty() || loc.ddc.isEmpty()) {
             attempt { openLibrary("ISBN:$isbn13") }
@@ -67,7 +67,7 @@ object Lookup {
     suspend fun byLccn(lccn: String): Answer = withContext(Dispatchers.IO) {
         try {
             val loc = sru("bath.lccn=$lccn", 1).firstOrNull()
-            val ol = if (loc == null || loc.lc.isEmpty()) openLibrary("LCCN:$lccn") else null
+            val ol = if (loc == null || loc.ddc.isEmpty()) openLibrary("LCCN:$lccn") else null
             merge(loc, ol)?.let { Answer.Hit(it.copy(lccn = lccn)) } ?: Answer.Miss
         } catch (e: IOException) {
             Answer.Offline
@@ -93,7 +93,11 @@ object Lookup {
             lc = loc.lc.ifEmpty { ol.lc },
             ddc = loc.ddc.ifEmpty { ol.ddc },
             lccn = loc.lccn.ifEmpty { ol.lccn },
-            source = if (loc.lc.isEmpty() && ol.lc.isNotEmpty()) "LoC + Open Library" else loc.source,
+            source = if ((loc.lc.isEmpty() && ol.lc.isNotEmpty()) || (loc.ddc.isEmpty() && ol.ddc.isNotEmpty())) {
+                "LoC + Open Library"
+            } else {
+                loc.source
+            },
         )
     }
 

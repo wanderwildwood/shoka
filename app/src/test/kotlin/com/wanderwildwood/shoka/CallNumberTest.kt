@@ -49,13 +49,21 @@ class CallNumberTest {
     @Test fun unnumberedBooksGoLastByAuthor() {
         val books = listOf(
             Book(id = 1, title = "Walden", author = "Henry David Thoreau"),
-            Book(id = 2, title = "Dune", author = "Herbert, Frank", lc = "PS3558.E63 D8 2005"),
-            Book(id = 3, title = "The Hobbit", author = "Tolkien, J. R. R.", lc = "PZ7.T5744 Ho 2012"),
+            Book(id = 2, title = "Dune", author = "Herbert, Frank", ddc = "813.54"),
+            Book(id = 3, title = "The Hobbit", author = "Tolkien, J. R. R.", ddc = "823.912"),
             Book(id = 4, title = "Emma", author = "Austen, Jane"),
         )
-        val order = Shelf.order(books, CallNumber.System.LC)
+        val order = Shelf.order(books, CallNumber.System.DEWEY)
         assertEquals(listOf(2L, 3L, 4L, 1L), order.map { it.book.id })
         assertEquals(listOf(1, 2, 3, 4), order.map { it.position })
         assertEquals(listOf(true, true, false, false), order.map { it.classified })
+    }
+
+    @Test fun sameDeweyNumberGoesByAuthor() {
+        val books = listOf(
+            Book(id = 1, title = "The dispossessed", author = "Le Guin, Ursula K.", ddc = "813.54"),
+            Book(id = 2, title = "Dune", author = "Herbert, Frank", ddc = "813.54"),
+        )
+        assertEquals(listOf(2L, 1L), Shelf.order(books, CallNumber.System.DEWEY).map { it.book.id })
     }
 }
