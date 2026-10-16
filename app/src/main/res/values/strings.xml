@@ -89,7 +89,7 @@
     <string name="save">Save</string>
     <string name="look_again">Look it up again</string>
     <string name="delete">Delete</string>
-    <string name="delete_armed">Tap again to delete</string>
+    <string name="delete_armed">Tap again</string>
     <string name="lc_invalid">Not an LC call number; it will sort with the unnumbered books.</string>
 
     <string name="cloud_heading">Nextcloud</string>
@@ -112,4 +112,13 @@
     <string name="cloud_use_folder">Use this folder</string>
     <string name="cloud_sync_now">Sync now</string>
     <string name="cloud_sign_out">Sign out</string>
+
+    <string name="about">About</string>
+    <string name="about_title">Shelf %1$s</string>
+    <string name="about_what">Scan a book\'s barcode and it finds the book\'s call number, then lists the whole collection in shelf order.</string>
+    <string name="about_sources">Book details from the Library of Congress catalogue and Open Library.</string>
+    <string name="about_licence">GNU General Public License v3</string>
+    <string name="about_feed_the_llamas">feed the llamas</string>
+    <string name="about_no_browser">There is no browser on this phone to open that with.</string>
+    <string name="about_close">Close</string>
 </resources>

@@ -224,14 +224,21 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
             if (ids.isNotEmpty()) Note(ids)
             if (book.source.isNotEmpty()) Note(stringResource(R.string.source, book.source))
             Spacer(Modifier.height(8.dp))
-            DialogButton(stringResource(R.string.save), filled = true) { lib.update(edited()); dismiss() }
-            if (book.isbn.isNotEmpty() || book.lccn.isNotEmpty()) {
-                DialogButton(stringResource(R.string.look_again)) { lib.update(edited()); lib.retry(book.id); dismiss() }
+            // Two to a row, so the whole dialog fits a 480x800 screen without scrolling.
+            Row {
+                Pair(stringResource(R.string.save), Modifier.weight(1f), filled = true) { lib.update(edited()); dismiss() }
+                Pair(stringResource(R.string.cancel), Modifier.weight(1f), onClick = dismiss)
             }
-            DialogButton(stringResource(if (armed) R.string.delete_armed else R.string.delete), filled = armed) {
-                if (armed) { lib.delete(book.id); dismiss() } else armed = true
+            Row {
+                if (book.isbn.isNotEmpty() || book.lccn.isNotEmpty()) {
+                    Pair(stringResource(R.string.look_again), Modifier.weight(1f)) {
+                        lib.update(edited()); lib.retry(book.id); dismiss()
+                    }
+                }
+                Pair(stringResource(if (armed) R.string.delete_armed else R.string.delete), Modifier.weight(1f), filled = armed) {
+                    if (armed) { lib.delete(book.id); dismiss() } else armed = true
+                }
             }
-            DialogButton(stringResource(R.string.cancel), onClick = dismiss)
         }
     }
 }
@@ -242,6 +249,7 @@ fun MenuDialog(lib: Library, dismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var cloud by remember { mutableStateOf(false) }
+    var about by remember { mutableStateOf(false) }
     val exported = stringResource(R.string.exported)
     val exportFailed = stringResource(R.string.export_failed)
     val importFailed = stringResource(R.string.import_failed)
@@ -266,6 +274,10 @@ fun MenuDialog(lib: Library, dismiss: () -> Unit) {
         CloudDialog(lib) { cloud = false }
         return
     }
+    if (about) {
+        AboutDialog(onDismiss = { about = false })
+        return
+    }
     EInkDialog(onDismiss = dismiss) {
         Title(stringResource(R.string.menu))
         DialogButton(stringResource(R.string.cloud_heading)) { cloud = true }
@@ -273,6 +285,7 @@ fun MenuDialog(lib: Library, dismiss: () -> Unit) {
         DialogButton(stringResource(R.string.import_csv)) {
             load.launch(arrayOf("text/*", "application/csv", "application/octet-stream"))
         }
+        DialogButton(stringResource(R.string.about)) { about = true }
         DialogButton(stringResource(R.string.close), onClick = dismiss)
     }
 }
@@ -373,5 +386,11 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
 @Composable
 fun DialogButton(text: String, filled: Boolean = false, onClick: () -> Unit) {
     Choice(text, filled, Modifier.fillMaxWidth().padding(vertical = 3.dp), onClick)
+}
+
+/** A [DialogButton] that shares its row with one other. */
+@Composable
+private fun Pair(text: String, modifier: Modifier, filled: Boolean = false, onClick: () -> Unit) {
+    Choice(text, filled, modifier.padding(3.dp), onClick)
 }
 

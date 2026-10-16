@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shelf: launcher icon in the Mudita Kompakt stock style (81 grid, ring r=19.25 x 2.5,
+     glyph stroke 2.5, black on transparent): three books standing on a shelf, a fourth
+     leaning against them. Built by ~/Desktop/icons/shoka/make.py. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="81dp"
+    android:height="81dp"
+    android:viewportWidth="81"
+    android:viewportHeight="81">
+    <path
+        android:pathData="M19.25,2.5C9.999,2.5 2.5,9.999 2.5,19.25V61.75C2.5,71.001 9.999,78.5 19.25,78.5H61.75C71.001,78.5 78.5,71.001 78.5,61.75V19.25C78.5,9.999 71.001,2.5 61.75,2.5H19.25ZM0,19.25C0,8.619 8.619,0 19.25,0H61.75C72.382,0 81,8.619 81,19.25V61.75C81,72.382 72.382,81 61.75,81H19.25C8.619,81 0,72.382 0,61.75V19.25Z"
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"/>
+    <path android:pathData="M28.802,29.160 L29.284,29.256 L29.693,29.529 L29.966,29.938 L30.062,30.420 L30.062,53.100 L29.966,53.582 L29.693,53.991 L29.284,54.264 L28.802,54.360 L25.022,54.360 L24.540,54.264 L24.131,53.991 L23.858,53.582 L23.762,53.100 L23.762,30.420 L23.858,29.938 L24.131,29.529 L24.540,29.256 L25.022,29.160 Z" android:fillColor="#FFFFFFFF" android:strokeColor="#FF000000" android:strokeWidth="2.5" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M36.362,33.360 L36.844,33.456 L37.253,33.729 L37.526,34.138 L37.622,34.620 L37.622,53.100 L37.526,53.582 L37.253,53.991 L36.844,54.264 L36.362,54.360 L31.322,54.360 L30.840,54.264 L30.431,53.991 L30.158,53.582 L30.062,53.100 L30.062,34.620 L30.158,34.138 L30.431,33.729 L30.840,33.456 L31.322,33.360 Z" android:fillColor="#FFFFFFFF" android:strokeColor="#FF000000" android:strokeWidth="2.5" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M42.242,26.640 L42.724,26.736 L43.133,27.009 L43.406,27.418 L43.502,27.900 L43.502,53.100 L43.406,53.582 L43.133,53.991 L42.724,54.264 L42.242,54.360 L38.882,54.360 L38.400,54.264 L37.991,53.991 L37.718,53.582 L37.622,53.100 L37.622,27.900 L37.718,27.418 L37.991,27.009 L38.400,26.736 L38.882,26.640 Z" android:fillColor="#FFFFFFFF" android:strokeColor="#FF000000" android:strokeWidth="2.5" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M49.137,31.180 L49.622,31.105 L50.100,31.222 L50.497,31.513 L50.752,31.934 L57.647,50.877 L57.722,51.364 L57.605,51.841 L57.314,52.237 L56.894,52.493 L52.947,53.929 L52.462,54.004 L51.984,53.887 L51.587,53.596 L51.333,53.176 L44.437,34.232 L44.362,33.746 L44.479,33.268 L44.770,32.872 L45.191,32.617 Z" android:fillColor="#FFFFFFFF" android:strokeColor="#FF000000" android:strokeWidth="2.5" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M23.762,36.720 L30.062,36.720" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="2.5" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M37.622,48.480 L43.502,48.480" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="2.5" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M21.242,54.360 L59.758,54.360" android:fillColor="#00000000" android:strokeColor="#FF000000" android:strokeWidth="2.5" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+</vector>
