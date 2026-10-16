@@ -46,6 +46,21 @@ object LoginFlow {
         )
     }
 
+    /**
+     * The QR code Nextcloud shows beside a new app password ("Show QR code for mobile apps"):
+     * `nc://login/user:<login>&password:<app password>&server:<address>`. Null for anything else.
+     */
+    fun fromQr(text: String): Account? {
+        val t = text.trim()
+        if (!t.startsWith("nc://login/")) return null
+        val parts = Regex("(user|password|server):(.*?)(?=&(?:user|password|server):|$)")
+            .findAll(t.removePrefix("nc://login/")).associate { it.groupValues[1] to it.groupValues[2] }
+        val user = parts["user"]?.takeIf { it.isNotEmpty() } ?: return null
+        val password = parts["password"]?.takeIf { it.isNotEmpty() } ?: return null
+        val server = parts["server"]?.takeIf { it.isNotEmpty() } ?: return null
+        return Account(normalise(server), user, password)
+    }
+
     /** "cloud.example" becomes "https://cloud.example". */
     fun normalise(server: String): String {
         val t = server.trim().trimEnd('/')

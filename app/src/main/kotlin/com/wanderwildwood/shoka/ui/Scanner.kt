@@ -37,7 +37,7 @@ data class Code(val text: String, val format: BarcodeReader.Format)
  * doesn't add it twice.
  */
 @Composable
-fun Scanner(modifier: Modifier, torch: Boolean, onCode: (Code) -> Unit) {
+fun Scanner(modifier: Modifier, torch: Boolean, formats: Set<BarcodeReader.Format> = BOOKS, onCode: (Code) -> Unit) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     val callback by rememberUpdatedState(onCode)
@@ -56,10 +56,7 @@ fun Scanner(modifier: Modifier, torch: Boolean, onCode: (Code) -> Unit) {
 
     DisposableEffect(owner) {
         val reader = BarcodeReader().apply {
-            options.formats = setOf(
-                BarcodeReader.Format.EAN_13, BarcodeReader.Format.UPC_A,
-                BarcodeReader.Format.EAN_8, BarcodeReader.Format.UPC_E,
-            )
+            options.formats = formats
             options.tryRotate = true
             options.tryHarder = true
             options.eanAddOnSymbol = BarcodeReader.EanAddOnSymbol.IGNORE
@@ -121,3 +118,9 @@ fun Scanner(modifier: Modifier, torch: Boolean, onCode: (Code) -> Unit) {
 }
 
 private const val REPEAT_MS = 2500L
+
+/** What's printed on the back of a book: the ISBN as an EAN-13, and the retail codes beside it. */
+val BOOKS = setOf(
+    BarcodeReader.Format.EAN_13, BarcodeReader.Format.UPC_A,
+    BarcodeReader.Format.EAN_8, BarcodeReader.Format.UPC_E,
+)

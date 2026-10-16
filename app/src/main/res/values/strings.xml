@@ -112,6 +112,9 @@
     <string name="cloud_use_folder">Use this folder</string>
     <string name="cloud_sync_now">Sync now</string>
     <string name="cloud_sign_out">Sign out</string>
+    <string name="cloud_scan_qr">Scan a QR code</string>
+    <string name="cloud_qr_note">On a computer, in Nextcloud: Personal settings → Security → Create new app password → Show QR code for mobile apps. Point the camera at it.</string>
+    <string name="cloud_qr_not_login">That QR code isn\'t a Nextcloud sign-in.</string>
 
     <string name="about">About</string>
     <string name="about_title">Shelf %1$s</string>

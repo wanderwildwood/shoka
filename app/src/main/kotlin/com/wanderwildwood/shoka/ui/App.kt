@@ -85,7 +85,8 @@ fun ShelfApp(lib: Library) {
         }
         HorizontalDividerMMD(thickness = 2.dp)
         when (tab) {
-            0 -> ScanScreen(lib, books, event, { event = it }, { editing = it })
+            // The menu's QR sign-in needs the camera, and only one screen can hold it at a time.
+            0 -> ScanScreen(lib, books, event, { event = it }, { editing = it }, cameraOn = !menu)
             else -> ShelfScreen(lib) { editing = it }
         }
     }
@@ -155,6 +156,7 @@ private fun ScanScreen(
     event: Event?,
     setEvent: (Event?) -> Unit,
     open: (Long) -> Unit,
+    cameraOn: Boolean,
 ) {
     val context = LocalContext.current
     var granted by remember {
@@ -188,7 +190,7 @@ private fun ScanScreen(
     val tall = LocalConfiguration.current.screenHeightDp > 700
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().height(if (tall) 230.dp else 150.dp).clipToBounds().background(Color.Black)) {
-            if (granted) {
+            if (granted && cameraOn) {
                 Scanner(Modifier.fillMaxSize(), torch) { code ->
                     val isbn = if (code.format == BarcodeReader.Format.EAN_13) Isbn.normalize(code.text) else null
                     if (isbn == null) { feedback.bad(); setEvent(Event.NotIsbn) } else take(isbn)
@@ -204,7 +206,7 @@ private fun ScanScreen(
                 ) {
                     TextMMD(text = stringResource(R.string.light), color = if (torch) Color.Black else Color.White)
                 }
-            } else {
+            } else if (!granted) {
                 Column(
                     Modifier.align(Alignment.Center).padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,

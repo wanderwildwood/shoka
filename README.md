@@ -54,7 +54,8 @@ With a [Nextcloud](https://nextcloud.com/) account, **Menu → Nextcloud** keeps
 catalogue in a folder there (`Books` unless you choose another), as `catalogue.json` with
 a `shelf-order.csv` beside it. Every phone signed in to the same folder keeps the same
 list, so two people can scan different rooms at once. Sign in through the server's own
-page, or with an app password made in Nextcloud's security settings.
+page, or with an app password: make one in Nextcloud's security settings on a computer,
+press **Show QR code for mobile apps**, and scan it with **Scan a QR code**.
 
 ## Building
 
@@ -67,7 +68,7 @@ A release build needs a keystore at `signing/signing.keystore` with a matching
 release build comes out unsigned rather than wrongly signed.
 
 `./gradlew testDebugUnitTest` runs the tests: ISBN and LCCN checking, call-number sort
-order, and merging two phones' catalogues.
+order, merging two phones' catalogues, and reading Nextcloud's sign-in QR code.
 
 ## Getting it, and keeping it
 

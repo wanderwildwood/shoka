@@ -1,14 +1,19 @@
 package com.wanderwildwood.shoka.ui
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -26,6 +31,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -33,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
 import com.mudita.mmd.components.lazy.LazyColumnMMD
@@ -56,6 +64,7 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.text.DateFormat
 import java.util.Date
+import zxingcpp.BarcodeReader
 
 @Composable
 private fun Title(text: String) {
@@ -312,6 +321,9 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
     var newFolder by remember(folder) { mutableStateOf(folder) }
     val noBrowser = stringResource(R.string.cloud_no_browser)
     val unreachable = stringResource(R.string.cloud_unreachable)
+    val notLogin = stringResource(R.string.cloud_qr_not_login)
+    var qr by remember { mutableStateOf(false) }
+    val askCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { qr = it }
 
     EInkDialog(onDismiss = dismiss) {
         Column(Modifier.heightIn(max = 540.dp).verticalScroll(rememberScrollState())) {
@@ -340,6 +352,20 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
             } else {
                 Note(stringResource(R.string.cloud_explain))
                 Spacer(Modifier.height(6.dp))
+                if (qr) {
+                    Note(stringResource(R.string.cloud_qr_note))
+                    Spacer(Modifier.height(6.dp))
+                    Box(Modifier.fillMaxWidth().height(180.dp).clipToBounds().background(Color.Black)) {
+                        Scanner(Modifier.fillMaxSize(), torch = false, formats = setOf(BarcodeReader.Format.QR_CODE)) { code ->
+                            val got = LoginFlow.fromQr(code.text)
+                            if (got == null) problem = notLogin else { qr = false; lib.signIn(got) }
+                        }
+                    }
+                    problem?.let { Note(it) }
+                    Spacer(Modifier.height(6.dp))
+                    DialogButton(stringResource(R.string.cancel)) { qr = false; problem = null }
+                    return@Column
+                }
                 Field(server, { server = it; problem = null }, R.string.cloud_server, KeyboardType.Uri, KeyboardCapitalization.None)
                 if (typed) {
                     Field(user, { user = it }, R.string.cloud_user, caps = KeyboardCapitalization.None)
@@ -368,6 +394,11 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                             }
                             waiting = false
                         }
+                    }
+                    DialogButton(stringResource(R.string.cloud_scan_qr)) {
+                        problem = null
+                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) qr = true
+                        else askCamera.launch(Manifest.permission.CAMERA)
                     }
                     DialogButton(stringResource(R.string.cloud_type_password)) { typed = true }
                 } else {
