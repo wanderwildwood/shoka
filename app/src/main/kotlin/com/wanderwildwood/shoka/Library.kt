@@ -22,6 +22,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 
 /**
@@ -44,8 +45,9 @@ class Library(app: Application) : AndroidViewModel(app) {
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val system = MutableStateFlow(
-        runCatching { CallNumber.System.valueOf(prefs.getString("system", "LC")!!) }
-            .getOrDefault(CallNumber.System.LC)
+        // A phone last set to LC, which is gone, comes back to Dewey.
+        runCatching { CallNumber.System.valueOf(prefs.getString("system", "DEWEY")!!) }
+            .getOrDefault(CallNumber.System.DEWEY)
     )
 
     val shelf: StateFlow<List<Placed>> = combine(books, system) { b, s -> Shelf.order(b, s) }
@@ -97,13 +99,13 @@ class Library(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("system", s.name).apply()
     }
 
-    /** The heading for a [Placed.section]: "Q · Science", "Fiction", or the no-class heading. */
+    /** The heading for a [Placed.section]: "500 · Science", "Fiction", or the no-number heading. */
     fun sectionName(code: String): String {
         val res = getApplication<Application>().resources
         return when (code) {
             Shelf.FICTION -> res.getString(R.string.section_fiction)
             "" -> res.getString(R.string.section_none)
-            else -> res.getStringArray(R.array.lc_classes)[Shelf.lcClasses.indexOf(code)]
+            else -> res.getStringArray(R.array.dewey_classes)[Shelf.deweyClasses.indexOf(code)]
         }
     }
 
@@ -210,9 +212,14 @@ class Library(app: Application) : AndroidViewModel(app) {
             writeLock.withLock {
                 // Read inside the lock, so whichever write lands last carries the newest list.
                 val snapshot = all.value
-                // Written beside and renamed over, so a kill mid-write can't leave half a file.
+                // Written beside, flushed to disk and renamed over, so neither a kill mid-write nor
+                // a power cut just after can leave half a file -- or an empty one, which the
+                // rename alone allows if the battery dies before the data is on disk.
                 val tmp = File(file.parentFile, "books.json.tmp")
-                tmp.writeText(Book.listToJson(snapshot).toString())
+                FileOutputStream(tmp).use { out ->
+                    out.write(Book.listToJson(snapshot).toString().toByteArray())
+                    out.fd.sync()
+                }
                 tmp.renameTo(file)
             }
         }
