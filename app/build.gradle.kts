@@ -15,8 +15,8 @@ android {
         // The Kompakt runs Android 12 (API 31), and the same APK runs on the Pixel.
         minSdk = 31
         targetSdk = 31
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.1.2"
     }
 
     // A real keystore in signing/ signs every build type when it is present, so a build

@@ -345,11 +345,14 @@ private fun PlaceCard(lib: Library, id: Long, open: (Long) -> Unit, foot: @Compo
             if (system == CallNumber.System.SECTIONS) {
                 // By author within a section, so the neighbours are named by author too.
                 val section = sectionName(p.section)
+                // The no-number heading reads badly inside a sentence, so it has its own lines.
+                val first = if (p.section.isEmpty()) stringResource(R.string.first_unnumbered) else stringResource(R.string.first_in_section, section)
+                val last = if (p.section.isEmpty()) stringResource(R.string.last_unnumbered) else stringResource(R.string.last_in_section, section)
                 fun named(b: Book) = listOf(b.author.substringBefore(','), b.title).filter { it.isNotEmpty() }.joinToString(", ")
                 fun near(j: Int) = shelf.getOrNull(j)?.takeIf { it.section == p.section }
-                Small(section + "  ·  " + p.book.title)
-                Small(near(i - 1)?.let { stringResource(R.string.after, named(it.book)) } ?: stringResource(R.string.first_in_section, section))
-                Small(near(i + 1)?.let { stringResource(R.string.before, named(it.book)) } ?: stringResource(R.string.last_in_section, section))
+                Small(if (p.section.isEmpty()) p.book.title else section + "  ·  " + p.book.title)
+                Small(near(i - 1)?.let { stringResource(R.string.after, named(it.book)) } ?: first)
+                Small(near(i + 1)?.let { stringResource(R.string.before, named(it.book)) } ?: last)
             } else {
                 Small(p.book.ddc.ifEmpty { stringResource(R.string.no_call_number) } + "  ·  " + p.book.title)
                 Small(shelf.getOrNull(i - 1)?.let { stringResource(R.string.after, it.book.title) } ?: stringResource(R.string.first_on_shelf))

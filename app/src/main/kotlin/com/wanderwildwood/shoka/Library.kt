@@ -120,7 +120,7 @@ class Library(app: Application) : AndroidViewModel(app) {
     fun addFound(f: Found): Book = add(
         Book(
             id = newId(), isbn = f.isbn, lccn = f.lccn, title = f.title, author = f.author,
-            year = f.year, lc = f.lc, ddc = f.ddc, source = f.source, status = Status.FOUND,
+            year = f.year, lc = f.lc, ddc = f.ddc, source = f.source, status = Status.FOUND, fiction = f.fiction,
         )
     )
 
@@ -184,6 +184,8 @@ class Library(app: Application) : AndroidViewModel(app) {
                             lc = cur.lc.ifEmpty { f.lc },
                             ddc = cur.ddc.ifEmpty { f.ddc },
                             lccn = cur.lccn.ifEmpty { f.lccn },
+                            // Set by hand wins; otherwise what the catalogue says, if it says.
+                            fiction = cur.fiction ?: f.fiction,
                             isbn = cur.isbn.ifEmpty { f.isbn },
                             source = f.source,
                             status = Status.FOUND,

@@ -7,8 +7,8 @@ the order it goes back on the shelf. It will install on any Android 12 device wi
 
 | | |
 |---|---|
-| ![Scanning books in](screenshots/1-scan.png) | ![The collection in shelf order](screenshots/2-shelf.png) |
-| ![Finding one book's place](screenshots/3-place.png) | ![A book's details](screenshots/4-edit.png) |
+| ![A new book, added and shown its place](screenshots/1-scan.png) | ![The collection in Sections, Fiction first](screenshots/2-shelf.png) |
+| ![A book already catalogued, going back on the shelf](screenshots/3-place.png) | ![A book's details](screenshots/4-edit.png) |
 
 ## Cataloguing
 
@@ -53,11 +53,17 @@ look it up again, or delete it.
 
 The [Library of Congress catalogue](https://www.loc.gov/) first, then
 [Open Library](https://openlibrary.org/) for anything it lacks. Neither needs an account.
+When neither gives a Dewey number, or only Open Library knows the ISBN, Shelf looks for
+another Library of Congress edition of the same title and author and takes its number
+(Dewey numbers the work, not the printing) and its form of the author's name. Whether a
+book is fiction comes from the catalogue when it says so, and from the Dewey number when
+it doesn't.
 
 ## Keeping the list
 
 The catalogue lives on the phone. **Menu → Save as a spreadsheet** writes it out in
-shelf order as a CSV (with each book's section, in the Sections order), and **Add from a spreadsheet** reads one back in.
+shelf order as a CSV (with each book's section, in the Sections order), and **Add from a
+spreadsheet** reads one back in.
 
 With a [Nextcloud](https://nextcloud.com/) account, **Menu → Nextcloud** keeps the
 catalogue in a folder there (`Books` unless you choose another), as `catalogue.json` with

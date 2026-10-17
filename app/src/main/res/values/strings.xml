@@ -48,6 +48,8 @@
     <string name="section_count">%1$s  (%2$d)</string>
     <string name="first_in_section">First in %1$s</string>
     <string name="last_in_section">Last in %1$s</string>
+    <string name="first_unnumbered">First of the books with no Dewey number</string>
+    <string name="last_unnumbered">Last of the books with no Dewey number</string>
     <!-- One per digit of Shelf.deweyClasses, 0 to 9. -->
     <string-array name="dewey_classes">
         <item>000 · General works, computing</item>
