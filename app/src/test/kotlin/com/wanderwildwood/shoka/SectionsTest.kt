@@ -72,4 +72,23 @@ class SectionsTest {
         assertEquals("yes", rows[1][head.indexOf("fiction")])
         assertEquals(true, Csv.read(Csv.write(placed, CallNumber.System.SECTIONS)) { 9 }.single().fiction)
     }
+
+    @Test fun genresFollowGeneralFictionInOrder() {
+        val got = order(
+            Book(id = 1, title = "Cosmos", author = "Sagan, Carl", ddc = "520"),
+            Book(id = 2, title = "Dune", author = "Herbert, Frank", ddc = "813.54", genre = "scifi"),
+            Book(id = 3, title = "It", author = "King, Stephen", ddc = "813.54", genre = "horror"),
+            Book(id = 4, title = "Emma", author = "Austen, Jane", ddc = "823.7"),
+            Book(id = 5, title = "Peril", author = "Christie, Agatha", ddc = "823.912", genre = "crime"),
+            // Chosen as general by hand, and a genre on a book that isn't fiction, both count for nothing.
+            Book(id = 6, title = "Beloved", author = "Morrison, Toni", ddc = "813.54", genre = Shelf.FICTION),
+            Book(id = 7, title = "Ethics", author = "Spinoza", ddc = "170", genre = "horror"),
+        )
+        assertEquals(listOf("Emma", "Beloved", "Peril", "Dune", "It", "Ethics", "Cosmos"), got)
+    }
+
+    @Test fun spreadsheetCarriesTheGenre() {
+        val placed = Shelf.order(listOf(Book(id = 1, title = "Dune", ddc = "813.54", genre = "scifi")), CallNumber.System.SECTIONS)
+        assertEquals("scifi", Csv.read(Csv.write(placed, CallNumber.System.SECTIONS)) { 9 }.single().genre)
+    }
 }

@@ -38,11 +38,13 @@ share a number standing by author, as a library's do. Books with no Dewey number
 after the numbered ones, by author and then by title.
 
 **Sections** is for a house rather than a library: no labels on the spines, and an order
-you can keep by eye. Fiction comes first, then each of Dewey's ten hundreds (100
-Philosophy, 500 Science, 800 Literature and so on), and within each, books stand by author
-and then by title. A label on the edge of each shelf is enough. A book counts as fiction
-when its Dewey number is a fiction number (813, 823, 891.73 and the like); **Fiction** in a
-book's details overrules that either way. In this order, a scanned book's place names its
+you can keep by eye. Fiction comes first: general fiction, then Crime & mystery, Science
+fiction, Fantasy, Horror, Romance, Historical fiction and Children's. Then come Dewey's ten
+hundreds (100 Philosophy, 500 Science, 800 Literature and so on). Within each section, books
+stand by author and then by title. A label on the edge of each shelf is enough. A book
+counts as fiction when its Dewey number is a fiction number (813, 823, 891.73 and the like),
+and its genre comes from the catalogue's subject headings. **Fiction** and **Shelf** in a
+book's details overrule either. In this order, a scanned book's place names its
 section and the books either side of it within that section.
 
 **To fix** narrows the list to the books still to be looked up or that no catalogue knew,
@@ -57,7 +59,8 @@ When neither gives a Dewey number, or only Open Library knows the ISBN, Shelf lo
 another Library of Congress edition of the same title and author and takes its number
 (Dewey numbers the work, not the printing) and its form of the author's name. Whether a
 book is fiction comes from the catalogue when it says so, and from the Dewey number when
-it doesn't.
+it doesn't. A novel's genre comes from its subject headings ("Detective and mystery
+stories", "Science fiction" and the like), and its audience code for children's books.
 
 ## Keeping the list
 

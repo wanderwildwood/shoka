@@ -77,6 +77,7 @@ class Library(app: Application) : AndroidViewModel(app) {
             loaded.filter { !it.deleted && (it.status == Status.LOOKING || it.status == Status.OFFLINE) }
                 .forEach { queue.trySend(it.id) }
             syncNow()
+            fillGenres()
         }
         // Two at a time: quick enough to keep up with a scanning hand, gentle on the LoC.
         repeat(2) { viewModelScope.launch { work() } }
@@ -104,6 +105,7 @@ class Library(app: Application) : AndroidViewModel(app) {
         val res = getApplication<Application>().resources
         return when (code) {
             Shelf.FICTION -> res.getString(R.string.section_fiction)
+            in Shelf.genres -> res.getStringArray(R.array.genres)[Shelf.genres.indexOf(code)]
             "" -> res.getString(R.string.section_none)
             else -> res.getStringArray(R.array.dewey_classes)[Shelf.deweyClasses.indexOf(code)]
         }
@@ -121,6 +123,7 @@ class Library(app: Application) : AndroidViewModel(app) {
         Book(
             id = newId(), isbn = f.isbn, lccn = f.lccn, title = f.title, author = f.author,
             year = f.year, lc = f.lc, ddc = f.ddc, source = f.source, status = Status.FOUND, fiction = f.fiction,
+            genre = f.genre,
         )
     )
 
@@ -186,6 +189,7 @@ class Library(app: Application) : AndroidViewModel(app) {
                             lccn = cur.lccn.ifEmpty { f.lccn },
                             // Set by hand wins; otherwise what the catalogue says, if it says.
                             fiction = cur.fiction ?: f.fiction,
+                            genre = cur.genre.ifEmpty { f.genre },
                             isbn = cur.isbn.ifEmpty { f.isbn },
                             source = f.source,
                             status = Status.FOUND,
@@ -196,6 +200,32 @@ class Library(app: Application) : AndroidViewModel(app) {
                 }
             }
         }
+    }
+
+    /**
+     * Novels catalogued before Fiction had genres get theirs looked up, once, a book at a time
+     * and quietly: the status stays as it was, and a book found to have none keeps none.
+     * Offline, it stops and tries again on the next start.
+     */
+    private suspend fun fillGenres() {
+        // An empty catalogue has nothing to fill; books synced in later come from a phone that does.
+        if (prefs.getBoolean("genres_filled", false) || books.value.isEmpty()) return
+        val todo = books.value.filter {
+            it.status == Status.FOUND && it.isFiction && it.genre.isEmpty() && (it.isbn.isNotEmpty() || it.lccn.isNotEmpty())
+        }
+        for (b in todo) {
+            val answer = try {
+                if (b.isbn.isNotEmpty()) Lookup.byIsbn(b.isbn) else Lookup.byLccn(b.lccn)
+            } catch (e: IOException) {
+                Answer.Offline
+            } catch (e: Exception) {
+                Answer.Miss
+            }
+            if (answer == Answer.Offline) return
+            val genre = (answer as? Answer.Hit)?.found?.genre.orEmpty()
+            if (genre.isNotEmpty()) change(b.id) { if (it.genre.isEmpty()) it.copy(genre = genre) else it }
+        }
+        prefs.edit().putBoolean("genres_filled", true).apply()
     }
 
     /** Saved at once; synced a few seconds after the last change, so a run of scans is one write. */

@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -55,6 +56,7 @@ import com.wanderwildwood.shoka.Library
 import com.wanderwildwood.shoka.LoginFlow
 import com.wanderwildwood.shoka.Lookup
 import com.wanderwildwood.shoka.R
+import com.wanderwildwood.shoka.Shelf
 import com.wanderwildwood.shoka.Status
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -190,6 +192,8 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
     var ddc by remember(book.id) { mutableStateOf(book.ddc) }
     var copies by remember(book.id) { mutableStateOf(book.copies) }
     var fiction by remember(book.id) { mutableStateOf(book.fiction) }
+    var genre by remember(book.id) { mutableStateOf(book.genre) }
+    var picking by remember(book.id) { mutableStateOf(false) }
     var armed by remember { mutableStateOf(false) }
 
     // Fill in whatever a lookup brings back while the dialog is open, if not yet typed over.
@@ -198,13 +202,14 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
         if (author.isEmpty()) author = book.author
         if (year.isEmpty()) year = book.year
         if (ddc.isEmpty()) ddc = book.ddc
+        if (genre.isEmpty()) genre = book.genre
     }
     // An armed delete disarms itself, so a stray tap later finds nothing live.
     LaunchedEffect(armed) { if (armed) { delay(4000); armed = false } }
 
     fun edited() = book.copy(
         title = title.trim(), author = author.trim(), year = year.trim(),
-        ddc = ddc.trim(), copies = copies, fiction = fiction,
+        ddc = ddc.trim(), copies = copies, fiction = fiction, genre = genre,
         status = if (book.status == Status.NOT_FOUND && ddc.isNotBlank()) Status.FOUND else book.status,
         source = if (ddc != book.ddc) "edited" else book.source,
     )
@@ -230,6 +235,24 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
                 Spacer(Modifier.weight(1f))
                 Link(stringResource(if (isFiction) R.string.yes else R.string.no)) {
                     fiction = (!isFiction).takeIf { it != guess }
+                }
+            }
+            if (isFiction) {
+                // General fiction is chosen as FICTION, not "", so a later lookup leaves it be.
+                val codes = listOf(Shelf.FICTION) + Shelf.genres
+                val names = listOf(stringResource(R.string.section_fiction)) + stringArrayResource(R.array.genres)
+                val current = codes.indexOf(genre.takeIf { it in Shelf.genres } ?: Shelf.FICTION)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextMMD(text = stringResource(R.string.field_genre))
+                    Spacer(Modifier.weight(1f))
+                    Link(names[current]) { picking = !picking }
+                }
+                if (picking) {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
+                        codes.forEachIndexed { i, c ->
+                            if (i != current) Link(names[i], bold = false) { genre = c; picking = false }
+                        }
+                    }
                 }
             }
             val ids = listOfNotNull(

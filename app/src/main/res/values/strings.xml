@@ -44,6 +44,16 @@
     <string name="system_dewey">Dewey</string>
     <string name="system_sections">Sections</string>
     <string name="section_fiction">Fiction</string>
+    <!-- In Shelf.genres order. -->
+    <string-array name="genres">
+        <item>Crime &amp; mystery</item>
+        <item>Science fiction</item>
+        <item>Fantasy</item>
+        <item>Horror</item>
+        <item>Romance</item>
+        <item>Historical fiction</item>
+        <item>Children\'s</item>
+    </string-array>
     <string name="section_none">No Dewey number — by author</string>
     <string name="section_count">%1$s  (%2$d)</string>
     <string name="first_in_section">First in %1$s</string>
@@ -103,6 +113,7 @@
     <string name="delete">Delete</string>
     <string name="delete_armed">Tap again</string>
     <string name="field_fiction">Fiction</string>
+    <string name="field_genre">Shelf</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
 

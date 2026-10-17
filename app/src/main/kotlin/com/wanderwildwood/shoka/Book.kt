@@ -24,6 +24,8 @@ data class Book(
     val deleted: Boolean = false,
     /** Set by hand when [fictionGuess] is wrong; null means go by the guess. */
     val fiction: Boolean? = null,
+    /** One of [Shelf.genres] for a novel, from the catalogue or set by hand; "" when unknown. */
+    val genre: String = "",
 ) {
     /**
      * Novels and stories, from the numbers: Dewey's fiction numbers (813 American, 823
@@ -54,6 +56,7 @@ data class Book(
         put("source", source); put("status", status.name); put("copies", copies)
         put("added", added); put("modified", modified); put("deleted", deleted)
         if (fiction != null) put("fiction", fiction)
+        if (genre.isNotEmpty()) put("genre", genre)
     }
 
     companion object {
@@ -74,6 +77,7 @@ data class Book(
             modified = o.optLong("modified", o.optLong("added")),
             deleted = o.optBoolean("deleted"),
             fiction = if (o.has("fiction")) o.optBoolean("fiction") else null,
+            genre = o.optString("genre"),
         )
 
         fun listToJson(books: List<Book>) = JSONArray().apply { books.forEach { put(it.toJson()) } }
@@ -84,20 +88,23 @@ data class Book(
 
 /**
  * A book with its place on the shelf. [position] counts from 1. [section] is set only in
- * the Sections order: a Dewey hundred ("5" for the 500s), [Shelf.FICTION], or "" for
- * books with neither.
+ * the Sections order: a Dewey hundred ("5" for the 500s), [Shelf.FICTION] or one of
+ * [Shelf.genres], or "" for books with neither.
  */
 data class Placed(val book: Book, val position: Int, val classified: Boolean, val section: String = "")
 
 object Shelf {
     const val FICTION = "fiction"
 
+    /** Fiction's own shelves, after general fiction, in this order. Set by hand as [FICTION]. */
+    val genres = listOf("crime", "scifi", "fantasy", "horror", "romance", "historical", "children")
+
     /** Dewey's ten main classes, 000 to 900, by their first digit. */
     val deweyClasses = (0..9).map { it.toString() }
 
-    /** Where a book stands in the Sections order: Fiction, its Dewey hundred, or "". */
+    /** Where a book stands in the Sections order: a fiction shelf, its Dewey hundred, or "". */
     fun section(b: Book): String = when {
-        b.isFiction -> FICTION
+        b.isFiction -> b.genre.takeIf { it in genres } ?: FICTION
         CallNumber.ddcKey(b.ddc) != null -> b.ddc.trim().take(1)
         else -> ""
     }
@@ -119,11 +126,11 @@ object Shelf {
     }
 
     /**
-     * Fiction first, then each Dewey hundred from 000 to 900, then books with no number; by
+     * Fiction first, general and then each genre, then each Dewey hundred from 000 to 900, then books with no number; by
      * author and title within each. Coarse enough to keep by eye, with a label on each shelf.
      */
     private fun bySection(books: List<Book>): List<Placed> {
-        val rank = (listOf(FICTION) + deweyClasses + "").withIndex().associate { it.value to it.index }
+        val rank = (listOf(FICTION) + genres + deweyClasses + "").withIndex().associate { it.value to it.index }
         return books.filterNot { it.deleted }
             .map { it to section(it) }
             .sortedWith(compareBy<Pair<Book, String>> { rank.getValue(it.second) }.thenBy(byName) { it.first })

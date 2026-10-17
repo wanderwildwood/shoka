@@ -24,6 +24,8 @@ data class Found(
     val source: String = "",
     /** Whether the catalogue itself calls it fiction; null when it doesn't say. */
     val fiction: Boolean? = null,
+    /** One of [Shelf.genres] when the subject headings say which; "" otherwise. */
+    val genre: String = "",
 )
 
 sealed interface Answer {
@@ -72,6 +74,7 @@ object Lookup {
                     // reads like the rest of the shelf, and gets double surnames right.
                     author = if (loc == null) other.author.ifEmpty { merged!!.author } else merged!!.author,
                     fiction = merged!!.fiction ?: other.fiction,
+                    genre = merged!!.genre.ifEmpty { other.genre },
                     source = merged!!.source + " + another edition",
                 )
             }
@@ -126,6 +129,7 @@ object Lookup {
             ddc = loc.ddc.ifEmpty { ol.ddc },
             lccn = loc.lccn.ifEmpty { ol.lccn },
             fiction = loc.fiction ?: ol.fiction,
+            genre = loc.genre.ifEmpty { ol.genre },
             source = if ((loc.lc.isEmpty() && ol.lc.isNotEmpty()) || (loc.ddc.isEmpty() && ol.ddc.isNotEmpty())) {
                 "LoC + Open Library"
             } else {
@@ -214,6 +218,7 @@ object Lookup {
         )
         val year = Regex("""\d{4}""").find(first("264", 'c').ifEmpty { first("260", 'c') })
             ?.value ?: ""
+        val fixed = f["008"]?.firstOrNull()?.get(' ')
         val lcRaw = listOf(first("050", 'a'), first("050", 'b')).filter { it.isNotEmpty() }
             .joinToString(" ")
             .ifEmpty { listOf(first("090", 'a'), first("090", 'b')).joinToString(" ").trim() }
@@ -226,7 +231,12 @@ object Lookup {
             lccn = first("010", 'a').trim(),
             isbn = first("020", 'a').split(' ').firstOrNull()?.let { Isbn.normalize(it) } ?: "",
             source = "Library of Congress",
-            fiction = Match.formIsFiction(f["008"]?.firstOrNull()?.get(' ')?.getOrNull(33)),
+            fiction = Match.formIsFiction(fixed?.getOrNull(33)),
+            genre = Match.genre(
+                listOf("650", "655").flatMap { t -> f[t].orEmpty().flatMap { listOfNotNull(it['a'], it['v'], it['x']) } },
+                // 008/22, the audience: a-c and j are children; d, adolescents, keep their genre.
+                juvenile = fixed?.getOrNull(22) in listOf('a', 'b', 'c', 'j'),
+            ),
         )
     }
 
@@ -261,6 +271,8 @@ object Lookup {
             lccn = strings(o.optJSONObject("identifiers"), "lccn").firstOrNull() ?: "",
             source = "Open Library",
             fiction = Match.subjectsSayFiction(subjects),
+            // Open Library tags too many grown-up novels "juvenile" to take its word for it.
+            genre = Match.genre(subjects, juvenile = false),
         )
     }
 }
@@ -286,6 +298,28 @@ object Match {
     fun subjectsSayFiction(subjects: List<String>): Boolean? =
         if (subjects.any { s -> s.trim().let { it.equals("fiction", true) || it.endsWith(" fiction", true) || it.contains("fictional works", true) } }) true
         else null
+
+    /**
+     * A novel's shelf from its subject headings ("Detective and mystery stories", "Science
+     * fiction", "Horror fiction" ...), or "". Headings often name two; the first rule here
+     * wins, so a dystopia shelves as science fiction even where it is also called fantasy or
+     * horror.
+     * "Love stories" is left out: catalogues give it to half the classics.
+     */
+    fun genre(subjects: List<String>, juvenile: Boolean): String {
+        if (juvenile) return "children"
+        val s = subjects.map { fold(it).lowercase() }
+        fun any(vararg words: String) = s.any { h -> words.any { Regex("""\b$it\b""").containsMatchIn(h) } }
+        return when {
+            any("detective", "mystery", "crime fiction", "thrillers", "suspense fiction", "spy stories", "espionage fiction") -> "crime"
+            any("science fiction", "dystopias", "dystopia", "dystopian", "apocalyptic fiction", "post-apocalyptic fiction") -> "scifi"
+            any("horror", "ghost stories") -> "horror"
+            any("fantasy", "fantasy fiction", "fantastic fiction") -> "fantasy"
+            any("romance fiction", "romance", "romantic suspense fiction") -> "romance"
+            any("historical fiction", "fiction, historical") -> "historical"
+            else -> ""
+        }
+    }
 
     fun mainTitle(t: String) = t.substringBefore(':').substringBefore(" / ").trim()
 

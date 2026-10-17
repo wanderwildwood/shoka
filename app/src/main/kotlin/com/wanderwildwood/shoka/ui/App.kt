@@ -272,6 +272,7 @@ private fun hasCall(b: Book, system: CallNumber.System) =
 @Composable
 private fun sectionName(code: String): String = when (code) {
     Shelf.FICTION -> stringResource(R.string.section_fiction)
+    in Shelf.genres -> stringArrayResource(R.array.genres)[Shelf.genres.indexOf(code)]
     "" -> stringResource(R.string.section_none)
     else -> stringArrayResource(R.array.dewey_classes)[Shelf.deweyClasses.indexOf(code)]
 }

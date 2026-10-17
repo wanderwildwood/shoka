@@ -3,7 +3,7 @@ package com.wanderwildwood.shoka
 /** Plain RFC 4180 CSV: enough for a spreadsheet to open, and for this app to read back. */
 object Csv {
     val header = listOf(
-        "position", "section", "lc", "dewey", "title", "author", "year", "isbn", "lccn", "copies", "source", "fiction",
+        "position", "section", "lc", "dewey", "title", "author", "year", "isbn", "lccn", "copies", "source", "fiction", "genre",
     )
 
     /** [sectionName] turns a [Placed.section] into the heading the shelf list shows. */
@@ -16,6 +16,7 @@ object Csv {
                     p.position.toString(), if (system == CallNumber.System.SECTIONS) sectionName(p.section) else "",
                     b.lc, b.ddc, b.title, b.author, b.year, b.isbn, b.lccn, b.copies.toString(), b.source,
                     when (b.fiction) { true -> "yes"; false -> "no"; null -> "" },
+                    b.genre,
                 ).joinToString(",", transform = ::quote)
             )
         }
@@ -74,6 +75,7 @@ object Csv {
                 copies = col(r, "copies").toIntOrNull()?.coerceAtLeast(1) ?: 1,
                 added = System.currentTimeMillis(),
                 fiction = when (col(r, "fiction").lowercase()) { "yes" -> true; "no" -> false; else -> null },
+                genre = col(r, "genre").lowercase().takeIf { it in Shelf.genres || it == Shelf.FICTION } ?: "",
             )
         }.filter { it.title.isNotEmpty() || it.isbn.isNotEmpty() }
     }

@@ -42,4 +42,21 @@ class MatchTest {
         assertFalse(Match.sameWork(mine, Found(title = "Fahrenheit 451 revisited", author = "Bradbury, Ray")))
         assertFalse(Match.sameWork(mine, Found(title = "Fahrenheit 451", author = "Smith, Jane")))
     }
+
+    @Test fun genresFromSubjectHeadings() {
+        assertEquals("crime", Match.genre(listOf("Detective and mystery stories", "Fiction"), false))
+        assertEquals("horror", Match.genre(listOf("Clowns", "Horror fiction.", "Fiction."), false))
+        // Dystopias are called fantasy too; science fiction wins.
+        assertEquals("scifi", Match.genre(listOf("Women", "Fantasy fiction.", "Dystopias."), false))
+        assertEquals("scifi", Match.genre(listOf("American Fantasy fiction", "Science Fiction"), false))
+        // Open Library's tags for The Road.
+        assertEquals("scifi", Match.genre(listOf("Fiction, dystopian", "Fiction, horror"), false))
+        assertEquals("fantasy", Match.genre(listOf("Elves", "Fantastic fiction", "Fantasy"), false))
+        assertEquals("historical", Match.genre(listOf("Fiction, historical, general"), false))
+        assertEquals("romance", Match.genre(listOf("Romance fiction"), false))
+        assertEquals("children", Match.genre(listOf("Science fiction"), true))
+        // Classics get "Love stories" and "Domestic fiction"; neither makes a genre shelf.
+        assertEquals("", Match.genre(listOf("Domestic fiction.", "Love stories.", "Fiction."), false))
+        assertEquals("", Match.genre(listOf("Romans, nouvelles", "Bildungsromans"), false))
+    }
 }
