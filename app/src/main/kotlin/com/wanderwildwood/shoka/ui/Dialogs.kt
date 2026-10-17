@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
-import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.text_field.TextFieldMMD
 import com.wanderwildwood.shoka.Account
@@ -146,7 +145,7 @@ fun SearchDialog(lib: Library, dismiss: () -> Unit, added: (Long, Boolean) -> Un
             results?.isEmpty() == true -> Note(stringResource(R.string.search_none))
         }
         results?.takeIf { it.isNotEmpty() }?.let { list ->
-            LazyColumnMMD(Modifier.heightIn(max = 220.dp), isScrollbarVisible = false) {
+            PagedColumn(Modifier.heightIn(max = 220.dp)) {
                 items(list.size) { i ->
                     val f = list[i]
                     Column(

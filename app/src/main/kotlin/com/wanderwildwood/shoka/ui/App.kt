@@ -51,7 +51,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mudita.mmd.components.buttons.ButtonMMD
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
-import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.text_field.TextFieldMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
@@ -241,7 +240,7 @@ private fun ScanScreen(
         val recentList = rememberLazyListState()
         LaunchedEffect(recent.firstOrNull()?.id) { recentList.scrollToItem(0) }
         ListJumpBox(recentList, ListJump.Pages, Modifier.weight(1f)) {
-            LazyColumnMMD(Modifier.fillMaxSize(), state = recentList, isScrollbarVisible = false) {
+            PagedColumn(Modifier.fillMaxSize(), state = recentList) {
                 items(recent.size, key = { recent[it].id }) { i ->
                     val b = recent[i]
                     Column(Modifier.fillMaxWidth().clickable { open(b.id) }.padding(horizontal = 16.dp, vertical = 6.dp)) {
@@ -454,7 +453,7 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
             ListJump.Letters(names, labels = labels)
         }
         ListJumpBox(list, jump, Modifier.weight(1f).padding(top = 8.dp)) {
-            LazyColumnMMD(Modifier.fillMaxSize(), state = list, isScrollbarVisible = false) {
+            PagedColumn(Modifier.fillMaxSize(), state = list) {
                 items(shown.size, key = { shown[it].book.id }) { i ->
                     val p = shown[i]
                     if (system == CallNumber.System.SECTIONS) {
