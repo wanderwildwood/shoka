@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +21,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +54,7 @@ import com.mudita.mmd.components.divider.HorizontalDividerMMD
 import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.text_field.TextFieldMMD
+import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.shoka.Book
 import com.wanderwildwood.shoka.CallNumber
 import com.wanderwildwood.shoka.Isbn
@@ -69,6 +73,7 @@ sealed interface Event {
     data object NotIsbn : Event
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ShelfApp(lib: Library) {
     var tab by rememberSaveable { mutableStateOf(0) }
@@ -80,13 +85,12 @@ fun ShelfApp(lib: Library) {
     Column(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).systemBarsPadding().imePadding()
     ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Tab(stringResource(R.string.tab_scan), tab == 0) { tab = 0 }
-            Tab(stringResource(R.string.tab_shelf), tab == 1) { tab = 1 }
-            Spacer(Modifier.weight(1f))
-            Tab(stringResource(R.string.menu), false) { menu = true }
-        }
-        HorizontalDividerMMD(thickness = 2.dp)
+        // Scan and Shelf order are the app's two views; the menu is a menu, so it is the bar's.
+        TopAppBarMMD(
+            title = { TextMMD(text = stringResource(R.string.app_name)) },
+            actions = { BarButton(Icons.More, stringResource(R.string.menu)) { menu = true } },
+        )
+        StoneTabs(listOf(stringResource(R.string.tab_scan), stringResource(R.string.tab_shelf)), tab, { tab = it })
         when (tab) {
             // The menu's QR sign-in needs the camera, and only one screen can hold it at a time.
             0 -> ScanScreen(lib, books, event, { event = it }, { editing = it }, cameraOn = !menu)
@@ -103,14 +107,18 @@ fun ShelfApp(lib: Library) {
     }
 }
 
+/** An icon in a top bar, with a target a thumb can find. */
 @Composable
-private fun Tab(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(Modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 12.dp)) {
-        TextMMD(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-            textDecoration = if (selected) androidx.compose.ui.text.style.TextDecoration.Underline else null,
+private fun BarButton(icon: ImageVector, description: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier.size(48.dp).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(22.dp),
         )
     }
 }
@@ -232,14 +240,16 @@ private fun ScanScreen(
         // The newest scan goes on top; without this the list keeps hold of the old top book.
         val recentList = rememberLazyListState()
         LaunchedEffect(recent.firstOrNull()?.id) { recentList.scrollToItem(0) }
-        LazyColumnMMD(Modifier.weight(1f), state = recentList, isScrollbarVisible = false) {
-            items(recent.size, key = { recent[it].id }) { i ->
-                val b = recent[i]
-                Column(Modifier.fillMaxWidth().clickable { open(b.id) }.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                    TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Small(statusLine(b, system), mono = hasCall(b, system))
+        ListJumpBox(recentList, ListJump.Pages, Modifier.weight(1f)) {
+            LazyColumnMMD(Modifier.fillMaxSize(), state = recentList, isScrollbarVisible = false) {
+                items(recent.size, key = { recent[it].id }) { i ->
+                    val b = recent[i]
+                    Column(Modifier.fillMaxWidth().clickable { open(b.id) }.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                        TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Small(statusLine(b, system), mono = hasCall(b, system))
+                    }
+                    HorizontalDividerMMD(thickness = 1.dp)
                 }
-                HorizontalDividerMMD(thickness = 1.dp)
             }
         }
     }
@@ -427,30 +437,48 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
             TextMMD(text = stringResource(R.string.empty_shelf), modifier = Modifier.padding(16.dp))
         }
 
-        LazyColumnMMD(Modifier.weight(1f).padding(top = 8.dp), state = list, isScrollbarVisible = false) {
-            items(shown.size, key = { shown[it].book.id }) { i ->
-                val p = shown[i]
-                if (system == CallNumber.System.SECTIONS) {
-                    if (i == 0 || shown[i - 1].section != p.section) {
-                        if (i > 0) HorizontalDividerMMD(thickness = 2.dp)
+        // Down the edge, the shelf's own order rather than A to Z: Dewey's ten hundreds, and in
+        // Sections fiction's initial above them. A book with no number has no mark of its own;
+        // it stands after the last of them.
+        val fiction = stringResource(R.string.section_fiction).take(1).uppercase()
+        val jump = remember(shown, system, fiction) {
+            val names = shown.map { p ->
+                when {
+                    system == CallNumber.System.SECTIONS && (p.section == Shelf.FICTION || p.section in Shelf.genres) -> fiction
+                    system == CallNumber.System.SECTIONS -> p.section
+                    p.classified -> p.book.ddc.trim().take(1)
+                    else -> ""
+                }
+            }
+            val labels = if (system == CallNumber.System.SECTIONS) listOf(fiction) + Shelf.deweyClasses else Shelf.deweyClasses
+            ListJump.Letters(names, labels = labels)
+        }
+        ListJumpBox(list, jump, Modifier.weight(1f).padding(top = 8.dp)) {
+            LazyColumnMMD(Modifier.fillMaxSize(), state = list, isScrollbarVisible = false) {
+                items(shown.size, key = { shown[it].book.id }) { i ->
+                    val p = shown[i]
+                    if (system == CallNumber.System.SECTIONS) {
+                        if (i == 0 || shown[i - 1].section != p.section) {
+                            if (i > 0) HorizontalDividerMMD(thickness = 2.dp)
+                            TextMMD(
+                                text = stringResource(R.string.section_count, sectionName(p.section), sizes[p.section] ?: 0),
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                            HorizontalDividerMMD(thickness = 2.dp)
+                        }
+                    } else if (!p.classified && (i == 0 || shown[i - 1].classified)) {
+                        HorizontalDividerMMD(thickness = 2.dp)
                         TextMMD(
-                            text = stringResource(R.string.section_count, sectionName(p.section), sizes[p.section] ?: 0),
+                            text = stringResource(R.string.unclassified_dewey),
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                         HorizontalDividerMMD(thickness = 2.dp)
                     }
-                } else if (!p.classified && (i == 0 || shown[i - 1].classified)) {
-                    HorizontalDividerMMD(thickness = 2.dp)
-                    TextMMD(
-                        text = stringResource(R.string.unclassified_dewey),
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                    HorizontalDividerMMD(thickness = 2.dp)
+                    ShelfRow(p, system) { open(p.book.id) }
+                    HorizontalDividerMMD(thickness = 1.dp)
                 }
-                ShelfRow(p, system) { open(p.book.id) }
-                HorizontalDividerMMD(thickness = 1.dp)
             }
         }
     }
