@@ -7,7 +7,7 @@ the order it goes back on the shelf. It will install on any Android 12 device wi
 
 | | |
 |---|---|
-| ![A new book, added and shown its place](screenshots/1-scan.png) | ![The collection in Sections, Fiction first](screenshots/2-shelf.png) |
+| ![A new book, added and shown its place](screenshots/1-scan.png) | ![The collection in Sections, fiction shelved by genre](screenshots/2-shelf.png) |
 | ![A book already catalogued, going back on the shelf](screenshots/3-place.png) | ![A book's details](screenshots/4-edit.png) |
 
 ## Cataloguing
