@@ -280,7 +280,7 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
     }
 }
 
-/** The overflow: syncing, and the spreadsheet in and out. */
+/** The overflow: syncing, the spreadsheet in and out, and the letters and page dots. */
 @Composable
 fun MenuDialog(lib: Library, dismiss: () -> Unit) {
     val context = LocalContext.current
@@ -322,6 +322,10 @@ fun MenuDialog(lib: Library, dismiss: () -> Unit) {
         DialogButton(stringResource(R.string.import_csv)) {
             load.launch(arrayOf("text/*", "application/csv", "application/octet-stream"))
         }
+        val jumpShown by rememberListJumpShown()
+        DialogButton(
+            stringResource(R.string.list_jump_menu, stringResource(if (jumpShown) R.string.list_jump_shown else R.string.list_jump_hidden))
+        ) { ListJumpPrefs.setShown(context, !jumpShown) }
         DialogButton(stringResource(R.string.about)) { about = true }
         DialogButton(stringResource(R.string.close), onClick = dismiss)
     }
