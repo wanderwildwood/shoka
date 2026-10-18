@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -52,6 +53,7 @@ import com.wanderwildwood.shoka.Found
 import com.wanderwildwood.shoka.Isbn
 import com.wanderwildwood.shoka.Lccn
 import com.wanderwildwood.shoka.Library
+import com.wanderwildwood.shoka.Listen
 import com.wanderwildwood.shoka.LoginFlow
 import com.wanderwildwood.shoka.Lookup
 import com.wanderwildwood.shoka.R
@@ -258,8 +260,21 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
                 book.isbn.takeIf { it.isNotEmpty() }?.let { "ISBN $it" },
                 book.lccn.takeIf { it.isNotEmpty() }?.let { "LCCN $it" },
             ).joinToString("  ·  ")
-            if (ids.isNotEmpty()) Note(ids)
-            if (book.source.isNotEmpty()) Note(stringResource(R.string.source, book.source))
+            // Listen sits beside the numbers, only when Audio Reading has this book to play, so
+            // the dialog keeps to one screen.
+            val context = LocalContext.current
+            val recording by produceState<String?>(null, book.title, book.author) {
+                value = withContext(Dispatchers.IO) { Listen.find(context, book) }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    if (ids.isNotEmpty()) Note(ids)
+                    if (book.source.isNotEmpty()) Note(stringResource(R.string.source, book.source))
+                }
+                recording?.let { key ->
+                    Link(stringResource(R.string.listen)) { Listen.open(context, key); dismiss() }
+                }
+            }
             Spacer(Modifier.height(8.dp))
             // Two to a row, so the whole dialog fits a 480x800 screen without scrolling.
             Row {

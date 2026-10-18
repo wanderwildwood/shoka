@@ -18,4 +18,7 @@ The catalogue itself is kept in the app's private storage. The app does not back
 uninstalling it removes it, along with the Nextcloud sign-in. The copy on Nextcloud stays
 there.
 
+**Audio Reading**, when it is installed: a book's page asks it, on the phone, whether it has
+that book (by title and author), to show **Listen**. Nothing is sent anywhere.
+
 The About dialog's last line opens a web address in your browser, and only when you press it.

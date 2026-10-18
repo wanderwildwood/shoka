@@ -7,6 +7,11 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
 
+    <queries>
+        <!-- Audio Reading, asked whether it has a book, for "Listen" on the book's page. -->
+        <package android:name="com.wanderwildwood.mimidoku" />
+    </queries>
+
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher_mudita"
