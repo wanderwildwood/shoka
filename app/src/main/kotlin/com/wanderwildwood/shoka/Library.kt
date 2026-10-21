@@ -257,9 +257,10 @@ class Library(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun syncNow() {
-        val acct = account.value ?: return
-        viewModelScope.launch {
+    /** Starts a sync with Nextcloud, or returns null when none is set up; the job ends when it has. */
+    fun syncNow(): Job? {
+        val acct = account.value ?: return null
+        return viewModelScope.launch {
             syncLock.withLock {
                 syncState.value = SyncState.SYNCING
                 val sent = all.value

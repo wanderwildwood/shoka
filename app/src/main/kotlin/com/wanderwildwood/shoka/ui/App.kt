@@ -61,6 +61,8 @@ import com.wanderwildwood.shoka.Book
 import com.wanderwildwood.shoka.CallNumber
 import com.wanderwildwood.shoka.Isbn
 import com.wanderwildwood.shoka.Library
+import com.wanderwildwood.shoka.pulledWords
+import com.wanderwildwood.shoka.rememberPull
 import com.wanderwildwood.shoka.Placed
 import com.wanderwildwood.shoka.R
 import com.wanderwildwood.shoka.Shelf
@@ -263,12 +265,17 @@ private fun ScanScreen(
         }
 
         HorizontalDividerMMD(thickness = 1.dp)
+        val pull = rememberPull(lib)
+        pulledWords(pull.pulled)?.let { line ->
+            Small(line, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp))
+            HorizontalDividerMMD(thickness = 1.dp)
+        }
         val recent = remember(books) { books.sortedByDescending { it.added }.take(60) }
         // The newest scan goes on top; without this the list keeps hold of the old top book.
         val recentList = rememberLazyListState()
         LaunchedEffect(recent.firstOrNull()?.id) { recentList.scrollToItem(0) }
         ListJumpBox(recentList, ListJump.Pages, Modifier.weight(1f)) {
-            PagedColumn(Modifier.fillMaxSize(), state = recentList) {
+            PagedColumn(Modifier.fillMaxSize(), state = recentList, onPullAtTop = if (pull.available) pull::pull else null) {
                 items(recent.size, key = { recent[it].id }) { i ->
                     val b = recent[i]
                     Column(Modifier.fillMaxWidth().clickable { open(b.id) }.padding(horizontal = 16.dp, vertical = 6.dp)) {
@@ -431,6 +438,7 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
         }
     }
 
+    val pull = rememberPull(lib)
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Choice(stringResource(R.string.system_dewey), system == CallNumber.System.DEWEY, Modifier.weight(1f)) {
@@ -443,7 +451,7 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
 
         Row(Modifier.fillMaxWidth().padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Small(
-                buildList {
+                pulledWords(pull.pulled) ?: buildList {
                     add(stringResource(R.string.summary, shelf.size))
                     if (looking > 0) add(stringResource(R.string.summary_looking, looking))
                     if (missing > 0) add(stringResource(R.string.summary_missing, missing))
@@ -485,7 +493,7 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
             ListJump.Letters(names, labels = labels)
         }
         ListJumpBox(list, jump, Modifier.weight(1f).padding(top = 8.dp)) {
-            PagedColumn(Modifier.fillMaxSize(), state = list) {
+            PagedColumn(Modifier.fillMaxSize(), state = list, onPullAtTop = if (pull.available) pull::pull else null) {
                 items(shown.size, key = { shown[it].book.id }) { i ->
                     val p = shown[i]
                     if (system == CallNumber.System.SECTIONS) {

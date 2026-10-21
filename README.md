@@ -83,7 +83,9 @@ catalogue in a folder there (`Books` unless you choose another), as `catalogue.j
 a `shelf-order.csv` beside it. Every phone signed in to the same folder keeps the same
 list, so two people can scan different rooms at once. Sign in through the server's own
 page, or with an app password: make one in Nextcloud's security settings on a computer,
-press **Show QR code for mobile apps**, and scan it with **Scan a QR code**.
+press **Show QR code for mobile apps**, and scan it with **Scan a QR code**. Pulling a book
+list down from its top syncs too, and a line says "Syncing…" and then "Up to date"; with no
+Nextcloud set up it does nothing.
 
 ## Building
 
