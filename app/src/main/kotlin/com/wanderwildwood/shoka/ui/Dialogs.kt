@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -58,6 +60,7 @@ import com.wanderwildwood.shoka.LoginFlow
 import com.wanderwildwood.shoka.Lookup
 import com.wanderwildwood.shoka.R
 import com.wanderwildwood.shoka.Shelf
+import com.wanderwildwood.shoka.Spoken
 import com.wanderwildwood.shoka.Status
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -87,11 +90,17 @@ private fun Field(
     type: KeyboardType = KeyboardType.Text,
     caps: KeyboardCapitalization = KeyboardCapitalization.Sentences,
     secret: Boolean = false,
+    autoCorrect: Boolean? = null,
+    onDone: (() -> Unit)? = null,
 ) {
     TextFieldMMD(
         value = value, onValueChange = set, singleLine = true,
         label = { TextMMD(text = stringResource(label), style = MaterialTheme.typography.labelSmall) },
-        keyboardOptions = KeyboardOptions(keyboardType = type, capitalization = caps),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = type, capitalization = caps, autoCorrectEnabled = autoCorrect,
+            imeAction = if (onDone != null) ImeAction.Done else ImeAction.Default,
+        ),
+        keyboardActions = KeyboardActions(onDone = onDone?.let { done -> { done() } }),
         visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
     )
@@ -101,27 +110,46 @@ private fun Field(
  * An ISBN typed in (a barcode too worn to read, or a book with the ISBN only inside), or
  * an LCCN from the copyright page of an older book. [done] gets the ISBN-13 to treat as a
  * scan, or the id of a book added by LCCN.
+ *
+ * The field is a text keyboard, not a number pad, because a number pad has no microphone:
+ * Gboard's and FUTO's voice typing are how a number gets said instead of typed. What they
+ * write ("nine seven eight oh one four…", "978 0 14…") goes through [Spoken.number] before
+ * it is checked, and the number that will be looked up is shown under the field whenever it
+ * differs from what is there.
  */
 @Composable
 fun ManualDialog(lib: Library, dismiss: () -> Unit, done: (String?, Long?) -> Unit) {
     var text by remember { mutableStateOf("") }
     var bad by remember { mutableStateOf(false) }
+    val cleaned = Spoken.number(text)
+    // Only when words became digits, not when the typing was already the number.
+    val typed = text.uppercase().filter { it.isDigit() || it == 'X' }
+    val converted = cleaned.isNotEmpty() && cleaned.filter { it != '-' } != typed
+    fun add() {
+        // As typed first, so an LCCN's letter prefix ("sn 78-1234") is kept; then as said.
+        val isbn = Isbn.normalize(text) ?: Isbn.normalize(cleaned)
+        val lccn = if (isbn == null) Lccn.normalize(text) ?: Lccn.normalize(cleaned) else null
+        when {
+            isbn != null -> { done(isbn, null); dismiss() }
+            lccn != null -> {
+                done(null, (lib.findLccn(lccn) ?: lib.addLccn(lccn)).id); dismiss()
+            }
+            else -> bad = true
+        }
+    }
     EInkDialog(onDismiss = dismiss) {
         Title(stringResource(R.string.manual_title))
-        Field(text, { text = it; bad = false }, R.string.manual_label, KeyboardType.Ascii, KeyboardCapitalization.None)
-        if (bad) Note(stringResource(R.string.manual_bad))
-        Spacer(Modifier.height(8.dp))
-        DialogButton(stringResource(R.string.add), filled = true) {
-            val isbn = Isbn.normalize(text)
-            val lccn = if (isbn == null) Lccn.normalize(text) else null
-            when {
-                isbn != null -> { done(isbn, null); dismiss() }
-                lccn != null -> {
-                    done(null, (lib.findLccn(lccn) ?: lib.addLccn(lccn)).id); dismiss()
-                }
-                else -> bad = true
-            }
+        Field(
+            text, { text = it; bad = false }, R.string.manual_label, KeyboardType.Text, KeyboardCapitalization.None,
+            autoCorrect = false, onDone = ::add,
+        )
+        when {
+            bad -> Note(stringResource(R.string.manual_bad))
+            converted -> Note(stringResource(R.string.manual_looked_up, cleaned))
+            text.isEmpty() -> Note(stringResource(R.string.manual_say))
         }
+        Spacer(Modifier.height(8.dp))
+        DialogButton(stringResource(R.string.add), filled = true, onClick = ::add)
         DialogButton(stringResource(R.string.cancel), onClick = dismiss)
     }
 }

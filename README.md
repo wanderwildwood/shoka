@@ -20,7 +20,9 @@ the order it goes back on the shelf. It will install on any Android 12 device wi
   book, two for one already here. A new book shows its place too, once it is looked up.
 - **Type a number** takes an ISBN, or an LCCN from the copyright page of a book printed
   before ISBNs.
-- **No ISBN** searches the Library of Congress by title and author, or adds the book by
+- **Say it instead**, with the keyboard's own voice typing (Gboard, FUTO): a title, or a number
+  spoken as words ("nine seven eight oh one four…"), which Shelf turns back into digits.
+- **Search by title** searches the Library of Congress by title and author, or adds the book by
   hand.
 - A barcode that isn't an ISBN (often a price code on a paperback) is turned away with a
   low tone.
