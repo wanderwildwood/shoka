@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -159,6 +161,7 @@ private fun Small(text: String, modifier: Modifier = Modifier, mono: Boolean = f
 
 // ---------------------------------------------------------------- Scan
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ScanScreen(
     lib: Library,
@@ -179,6 +182,7 @@ private fun ScanScreen(
     var torch by rememberSaveable { mutableStateOf(false) }
     var manual by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf(false) }
+    var byHand by remember { mutableStateOf(false) }
     val system by lib.system.collectAsStateWithLifecycle()
 
     val feedback = remember { Feedback(context) }
@@ -229,9 +233,12 @@ private fun ScanScreen(
             EventCard(lib, books, event, setEvent, open)
         }
 
-        Row(Modifier.fillMaxWidth()) {
+        // Three ways in when the barcode won't do: its number typed, a title searched for, or the
+        // book written in by hand. They wrap to a second line rather than run off a narrow screen.
+        FlowRow(Modifier.fillMaxWidth()) {
             Link(stringResource(R.string.type_number)) { manual = true }
             Link(stringResource(R.string.search_title)) { search = true }
+            Link(stringResource(R.string.by_hand)) { byHand = true }
         }
 
         HorizontalDividerMMD(thickness = 1.dp)
@@ -256,9 +263,13 @@ private fun ScanScreen(
     if (manual) ManualDialog(lib, { manual = false }) { isbn, id ->
         if (isbn != null) take(isbn) else if (id != null) setEvent(Event.Added(id))
     }
-    if (search) SearchDialog(lib, { search = false }) { id, byHand ->
+    if (search) SearchDialog(lib, { search = false }) { id, typedIn ->
         setEvent(Event.Added(id))
-        if (byHand) open(id)
+        if (typedIn) open(id)
+    }
+    if (byHand) ByHandDialog(lib, { byHand = false }) { id ->
+        setEvent(Event.Added(id))
+        open(id)
     }
 }
 

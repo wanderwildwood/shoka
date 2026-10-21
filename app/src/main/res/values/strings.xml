@@ -31,7 +31,8 @@
     <string name="last_on_shelf">Last on the shelf</string>
 
     <string name="type_number">Type a number</string>
-    <string name="search_title">No ISBN</string>
+    <string name="search_title">Search by title</string>
+    <string name="by_hand">Add by hand</string>
 
     <string name="recent">Just scanned</string>
 
@@ -101,6 +102,8 @@
     <string name="search_none">Nothing found. Try fewer words, or add it by hand.</string>
     <string name="search_offline">No connection.</string>
     <string name="add_by_hand">None of these — add it by hand</string>
+    <string name="by_hand_heading">Add a book by hand</string>
+    <string name="by_hand_note">For a book with no barcode or number, or one the library doesn\'t know. The rest can go in on its page.</string>
 
     <string name="edit_heading">Book</string>
     <string name="field_year">Year</string>

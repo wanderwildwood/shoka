@@ -161,7 +161,9 @@ fun SearchDialog(lib: Library, dismiss: () -> Unit, added: (Long, Boolean) -> Un
                 }
             }
         }
-        if (results != null && title.isNotBlank()) {
+        // Offered as soon as there is a title, not only after a search comes back empty: offline,
+        // or for a book no library has, a search is a step that can only fail.
+        if (title.isNotBlank()) {
             Link(stringResource(R.string.add_by_hand), bold = false) {
                 added(lib.addByHand(title, author).id, true); dismiss()
             }
@@ -472,3 +474,23 @@ private fun Pair(text: String, modifier: Modifier, filled: Boolean = false, onCl
     Choice(text, filled, modifier.padding(3.dp), onClick)
 }
 
+
+/** A book with nothing to look it up by: a title and an author, and the rest on its own page. */
+@Composable
+fun ByHandDialog(lib: Library, dismiss: () -> Unit, added: (Long) -> Unit) {
+    var title by remember { mutableStateOf("") }
+    var author by remember { mutableStateOf("") }
+
+    EInkDialog(onDismiss = dismiss) {
+        Title(stringResource(R.string.by_hand_heading))
+        Note(stringResource(R.string.by_hand_note))
+        Spacer(Modifier.height(6.dp))
+        Field(title, { title = it }, R.string.field_title, caps = KeyboardCapitalization.Words)
+        Field(author, { author = it }, R.string.field_author, caps = KeyboardCapitalization.Words)
+        Spacer(Modifier.height(6.dp))
+        DialogButton(stringResource(R.string.add), filled = true) {
+            if (title.isNotBlank()) { added(lib.addByHand(title, author).id); dismiss() }
+        }
+        DialogButton(stringResource(R.string.close), onClick = dismiss)
+    }
+}
