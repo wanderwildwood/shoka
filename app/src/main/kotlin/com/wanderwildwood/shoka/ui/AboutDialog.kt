@@ -46,6 +46,9 @@ fun AboutDialog(onDismiss: () -> Unit) {
         TextMMD(text = stringResource(R.string.about_licence), style = MaterialTheme.typography.labelSmall)
 
         Spacer(Modifier.height(14.dp))
+        TextMMD(text = stringResource(R.string.about_bundled), style = MaterialTheme.typography.labelSmall)
+
+        Spacer(Modifier.height(14.dp))
         TextMMD(text = "github.com/wanderwildwood/shoka", style = MaterialTheme.typography.labelSmall)
 
         Spacer(Modifier.height(14.dp))

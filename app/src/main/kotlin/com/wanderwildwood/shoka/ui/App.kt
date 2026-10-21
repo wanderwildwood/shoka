@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -180,6 +181,8 @@ private fun ScanScreen(
     }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
     var torch by rememberSaveable { mutableStateOf(false) }
+    // Reading the ISBN printed as text, for a book with no barcode or a damaged one.
+    var readText by rememberSaveable { mutableStateOf(false) }
     var manual by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf(false) }
     var byHand by remember { mutableStateOf(false) }
@@ -197,23 +200,41 @@ private fun ScanScreen(
 
     // The Kompakt's screen is 610dp tall, the Pixel's 850: the camera takes what is spare.
     val tall = LocalConfiguration.current.screenHeightDp > 700
+    // A tablet with no camera (Supernote's) starts with the card and the ways to add by hand.
+    val camera = remember { hasCamera(context) }
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().height(if (tall) 230.dp else 150.dp).clipToBounds().background(Color.Black)) {
+        if (camera) Box(Modifier.fillMaxWidth().height(if (tall) 230.dp else 150.dp).clipToBounds().background(Color.Black)) {
             if (granted && cameraOn) {
-                Scanner(Modifier.fillMaxSize(), torch) { code ->
+                val boxHeightPx = with(LocalDensity.current) { TextBox.HEIGHT.roundToPx() }
+                Scanner(
+                    Modifier.fillMaxSize(), torch,
+                    readText = readText, textBoxHeightPx = boxHeightPx,
+                    // A number read off the page is taken just as a scanned one is.
+                    onNumber = { take(it) },
+                ) { code ->
                     val isbn = if (code.format == BarcodeReader.Format.EAN_13) Isbn.normalize(code.text) else null
                     if (isbn == null) { feedback.bad(); setEvent(Event.NotIsbn) } else take(isbn)
                 }
-                // A guide line, so the barcode goes where the reader looks hardest.
-                Box(Modifier.align(Alignment.Center).fillMaxWidth(0.7f).height(1.dp).background(Color.White))
-                Box(
-                    Modifier.align(Alignment.BottomEnd).padding(8.dp)
-                        .background(if (torch) Color.White else Color.Black)
-                        .border(1.dp, Color.White)
-                        .clickable { torch = !torch }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    TextMMD(text = stringResource(R.string.light), color = if (torch) Color.Black else Color.White)
+                if (readText) {
+                    // A box for one line of print, and what goes in it.
+                    TextMMD(
+                        text = stringResource(R.string.read_number_hint), color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 6.dp),
+                    )
+                    Box(
+                        Modifier.align(Alignment.Center).fillMaxWidth(TextBox.WIDTH).height(TextBox.HEIGHT)
+                            .border(1.dp, Color.White)
+                    )
+                } else {
+                    // A guide line, so the barcode goes where the reader looks hardest.
+                    Box(Modifier.align(Alignment.Center).fillMaxWidth(0.7f).height(1.dp).background(Color.White))
+                }
+                CameraButton(stringResource(R.string.read_number), readText, Modifier.align(Alignment.BottomStart)) {
+                    readText = !readText
+                }
+                CameraButton(stringResource(R.string.light), torch, Modifier.align(Alignment.BottomEnd)) {
+                    torch = !torch
                 }
             } else if (!granted) {
                 Column(
@@ -515,5 +536,19 @@ private fun ShelfRow(p: Placed, system: CallNumber.System, onClick: () -> Unit) 
             }.joinToString("  ·  ")
             if (sub.isNotEmpty()) Small(sub)
         }
+    }
+}
+
+/** A button over the camera picture: white on black, and black on white while it is on. */
+@Composable
+private fun CameraButton(label: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Box(
+        modifier.padding(8.dp)
+            .background(if (on) Color.White else Color.Black)
+            .border(1.dp, Color.White)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        TextMMD(text = label, color = if (on) Color.Black else Color.White)
     }
 }

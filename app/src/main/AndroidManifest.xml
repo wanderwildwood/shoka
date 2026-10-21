@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- The camera reads barcodes; the network looks them up. Nothing else. -->
+    <!-- The camera reads barcodes and printed numbers; the network looks them up. Nothing else.
+         A device with no camera (Supernote's tablets) still installs it, and adds books by hand. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-feature android:name="android.hardware.camera" android:required="true" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <!-- The camera permission otherwise implies autofocus is required. -->
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <queries>
         <!-- Audio Reading, asked whether it has a book, for "Listen" on the book's page. -->

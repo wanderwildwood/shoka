@@ -16,8 +16,17 @@ android {
         // Supernote's tablets, which run Android 11 (API 30).
         minSdk = 30
         targetSdk = 31
-        versionCode = 10
-        versionName = "0.1.9"
+        versionCode = 11
+        versionName = "0.1.10"
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            // The Kompakt, the Pixel and Supernote's tablets are all arm64. The emulator an
+            // x86_64 debug build is tried on is added below, so a release carries one copy of
+            // the native code, not four (Tesseract's alone is 7 MB a copy, stored uncompressed).
+            abiFilters += "arm64-v8a"
+        }
     }
 
     // A real keystore in signing/ signs every build type when it is present, so a build
@@ -41,6 +50,7 @@ android {
     buildTypes {
         getByName("debug") {
             isMinifyEnabled = false
+            ndk { abiFilters += "x86_64" }
             realSigningConfig?.let { signingConfig = it }
         }
         getByName("release") {
@@ -100,6 +110,9 @@ dependencies {
     implementation(libs.camera.lifecycle)
     implementation(libs.camera.view)
     implementation(libs.zxing.cpp)
+    implementation(libs.tesseract4android)
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 }

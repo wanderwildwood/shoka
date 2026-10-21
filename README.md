@@ -3,7 +3,9 @@
 A book catalogue for the [Mudita Kompakt](https://mudita.com/products/kompakt/), made for
 taking a whole house of books off the shelves and putting them back in order. Scan the
 barcode on each book. Shelf finds the book's Dewey number and lists the whole collection in
-the order it goes back on the shelf. It will install on any Android 12 device with a camera.
+the order it goes back on the shelf. It will install on any device with Android 11 or later,
+Supernote's tablets among them; without a camera, books are added by number, by title search
+or by hand.
 
 | | |
 |---|---|
@@ -18,6 +20,9 @@ the order it goes back on the shelf. It will install on any Android 12 device wi
   shelf, and Shelf shows where: its number in shelf order and the books either side
   (with **Add another copy** for when it really is a second one). One beep for a new
   book, two for one already here. A new book shows its place too, once it is looked up.
+- **Read the number**, over the camera, for a book with no barcode or a worn one: hold the
+  printed ISBN line (on the copyright page, or "ISBN 978-…" on the back) in the box. It is
+  read on the phone, and taken only when its check digit is right.
 - **Type a number** takes an ISBN, or an LCCN from the copyright page of a book printed
   before ISBNs.
 - **Say it instead**, with the keyboard's own voice typing (Gboard, FUTO): a title, or a number
@@ -121,3 +126,10 @@ You should have received a copy of the GNU General Public License along with thi
 not, see <https://www.gnu.org/licenses/>.
 
 Barcodes are read with [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp), Apache 2.0.
+
+Printed ISBNs are read with [Tesseract](https://github.com/tesseract-ocr/tesseract), Apache 2.0,
+through [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android), Apache 2.0, which
+carries [Leptonica](http://www.leptonica.org/) (BSD 2-clause), libjpeg (the IJG licence) and
+libpng (the libpng licence). The model is the English one from
+[tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast), Apache 2.0, with its word lists
+taken out, since only the number is read.

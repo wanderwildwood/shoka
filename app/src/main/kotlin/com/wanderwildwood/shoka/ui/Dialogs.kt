@@ -472,7 +472,7 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                             waiting = false
                         }
                     }
-                    DialogButton(stringResource(R.string.cloud_scan_qr)) {
+                    if (hasCamera(context)) DialogButton(stringResource(R.string.cloud_scan_qr)) {
                         problem = null
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) qr = true
                         else askCamera.launch(Manifest.permission.CAMERA)

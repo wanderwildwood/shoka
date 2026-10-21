@@ -6,6 +6,8 @@
     <string name="tab_shelf">Shelf order</string>
 
     <string name="light">Light</string>
+    <string name="read_number">Read the number</string>
+    <string name="read_number_hint">Hold the ISBN line in the box</string>
 
     <string name="camera_needed">The camera reads the barcodes on the back of each book.</string>
     <string name="camera_allow">Allow the camera</string>
@@ -155,6 +157,7 @@
     <string name="about_what">Scan a book\'s barcode and it finds the book\'s call number, then lists the whole collection in shelf order.</string>
     <string name="about_sources">Book details from the Library of Congress catalogue and Open Library.</string>
     <string name="about_licence">GNU General Public License v3</string>
+    <string name="about_bundled">Barcodes are read with zxing-cpp, and printed numbers with Tesseract through Tesseract4Android, all Apache 2.0.</string>
     <string name="about_feed_the_llamas">feed the llamas</string>
     <string name="about_no_browser">There is no browser on this phone to open that with.</string>
     <string name="about_close">Close</string>
