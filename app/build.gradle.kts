@@ -12,8 +12,9 @@ android {
 
     defaultConfig {
         applicationId = "com.wanderwildwood.shoka"
-        // The Kompakt runs Android 12 (API 31), and the same APK runs on the Pixel.
-        minSdk = 31
+        // The Kompakt runs Android 12 (API 31), and the same APK runs on the Pixel, and on
+        // Supernote's tablets, which run Android 11 (API 30).
+        minSdk = 30
         targetSdk = 31
         versionCode = 10
         versionName = "0.1.9"
