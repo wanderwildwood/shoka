@@ -10,7 +10,7 @@ or by hand.
 | | |
 |---|---|
 | ![A new book, added and shown its place](screenshots/1-scan.png) | ![The collection in Sections, fiction shelved by genre](screenshots/2-shelf.png) |
-| ![A book already catalogued, going back on the shelf](screenshots/3-place.png) | ![A book's details, with Listen for a recording in Audio Reading](screenshots/4-edit.png) |
+| ![A book already catalogued, going back on the shelf](screenshots/3-place.png) | ![A book's details, with Listen for a recording in Audiobooks](screenshots/4-edit.png) |
 
 ## Cataloguing
 
@@ -31,9 +31,9 @@ or by hand.
   hand.
 - A barcode that isn't an ISBN (often a price code on a paperback) is turned away with a
   low tone.
-- **Listen**, on a book's page, when [Audio Reading](https://github.com/wanderwildwood/mimidoku)
+- **Listen**, on a book's page, when [Audiobooks](https://github.com/wanderwildwood/mimidoku)
   has a recording of it (on the card or on its Audiobookshelf server): it opens the book
-  there. Audio Reading answers Shelf alone, and only about the book asked for.
+  there. Audiobooks answers Shelf alone, and only about the book asked for.
 
 Without a connection, books are still scanned and kept. They are looked up when the
 connection comes back.
