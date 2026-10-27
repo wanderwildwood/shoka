@@ -271,6 +271,7 @@ private fun ScanScreen(
             HorizontalDividerMMD(thickness = 1.dp)
         }
         val recent = remember(books) { books.sortedByDescending { it.added }.take(60) }
+        if (recent.isEmpty()) Small(stringResource(R.string.recent_empty), Modifier.padding(16.dp), maxLines = 3)
         // The newest scan goes on top; without this the list keeps hold of the old top book.
         val recentList = rememberLazyListState()
         LaunchedEffect(recent.firstOrNull()?.id) { recentList.scrollToItem(0) }
@@ -472,8 +473,10 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
             Choice(stringResource(R.string.needs_attention), attention, Modifier.width(120.dp)) { attention = !attention }
         }
 
-        if (shelf.isEmpty()) {
-            TextMMD(text = stringResource(R.string.empty_shelf), modifier = Modifier.padding(16.dp))
+        when {
+            shelf.isEmpty() -> TextMMD(text = stringResource(R.string.empty_shelf), modifier = Modifier.padding(16.dp))
+            shown.isEmpty() && query.isNotBlank() -> TextMMD(text = stringResource(R.string.filter_none, query.trim()), modifier = Modifier.padding(16.dp))
+            shown.isEmpty() -> TextMMD(text = stringResource(R.string.attention_none), modifier = Modifier.padding(16.dp))
         }
 
         // Down the edge, the shelf's own order rather than A to Z: Dewey's ten hundreds, and in

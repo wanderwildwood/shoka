@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -51,6 +50,7 @@ import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.text_field.TextFieldMMD
 import com.wanderwildwood.shoka.Account
 import com.wanderwildwood.shoka.Book
+import com.wanderwildwood.shoka.CallNumber
 import com.wanderwildwood.shoka.Found
 import com.wanderwildwood.shoka.Isbn
 import com.wanderwildwood.shoka.Lccn
@@ -111,16 +111,18 @@ private fun Field(
  * an LCCN from the copyright page of an older book. [done] gets the ISBN-13 to treat as a
  * scan, or the id of a book added by LCCN.
  *
- * The field is a text keyboard, not a number pad, because a number pad has no microphone:
- * Gboard's and FUTO's voice typing are how a number gets said instead of typed. What they
- * write ("nine seven eight oh one four…", "978 0 14…") goes through [Spoken.number] before
- * it is checked, and the number that will be looked up is shown under the field whenever it
- * differs from what is there.
+ * The field opens on the number keyboard, since an ISBN is digits. One press changes it to the
+ * letter keyboard: for an LCCN's letters, an ISBN-10's closing X, and for the microphone,
+ * since a number pad has none: Gboard's and FUTO's voice typing are how a number gets said
+ * instead of typed. What they write ("nine seven eight oh one four…", "978 0 14…") goes through
+ * [Spoken.number] before it is checked, and the number that will be looked up is shown under
+ * the field whenever it differs from what is there.
  */
 @Composable
 fun ManualDialog(lib: Library, dismiss: () -> Unit, done: (String?, Long?) -> Unit) {
     var text by remember { mutableStateOf("") }
     var bad by remember { mutableStateOf(false) }
+    var letters by remember { mutableStateOf(false) }
     val cleaned = Spoken.number(text)
     // Only when words became digits, not when the typing was already the number.
     val typed = text.uppercase().filter { it.isDigit() || it == 'X' }
@@ -140,16 +142,19 @@ fun ManualDialog(lib: Library, dismiss: () -> Unit, done: (String?, Long?) -> Un
     EInkDialog(onDismiss = dismiss) {
         Title(stringResource(R.string.manual_title))
         Field(
-            text, { text = it; bad = false }, R.string.manual_label, KeyboardType.Text, KeyboardCapitalization.None,
+            text, { text = it; bad = false }, R.string.manual_label,
+            if (letters) KeyboardType.Text else KeyboardType.Number, KeyboardCapitalization.None,
             autoCorrect = false, onDone = ::add,
         )
         when {
+            bad && text.isBlank() -> Note(stringResource(R.string.manual_empty))
             bad -> Note(stringResource(R.string.manual_bad))
             converted -> Note(stringResource(R.string.manual_looked_up, cleaned))
-            text.isEmpty() -> Note(stringResource(R.string.manual_say))
+            text.isEmpty() && letters -> Note(stringResource(R.string.manual_say))
         }
         Spacer(Modifier.height(8.dp))
         DialogButton(stringResource(R.string.add), filled = true, onClick = ::add)
+        DialogButton(stringResource(if (letters) R.string.manual_numbers else R.string.manual_letters)) { letters = !letters }
         DialogButton(stringResource(R.string.cancel), onClick = dismiss)
     }
 }
@@ -162,14 +167,16 @@ fun SearchDialog(lib: Library, dismiss: () -> Unit, added: (Long, Boolean) -> Un
     var results by remember { mutableStateOf<List<Found>?>(null) }
     var busy by remember { mutableStateOf(false) }
     var offline by remember { mutableStateOf(false) }
+    var empty by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     EInkDialog(onDismiss = dismiss) {
         Title(stringResource(R.string.search_heading))
-        Field(title, { title = it }, R.string.field_title, caps = KeyboardCapitalization.Words)
-        Field(author, { author = it }, R.string.field_author, caps = KeyboardCapitalization.Words)
+        Field(title, { title = it; empty = false }, R.string.field_title, caps = KeyboardCapitalization.Words)
+        Field(author, { author = it; empty = false }, R.string.field_author, caps = KeyboardCapitalization.Words)
         Spacer(Modifier.height(6.dp))
         when {
+            empty -> Note(stringResource(R.string.search_empty))
             busy -> Note(stringResource(R.string.searching))
             offline -> Note(stringResource(R.string.search_offline))
             results?.isEmpty() == true -> Note(stringResource(R.string.search_none))
@@ -198,6 +205,8 @@ fun SearchDialog(lib: Library, dismiss: () -> Unit, added: (Long, Boolean) -> Un
         }
         Spacer(Modifier.height(6.dp))
         DialogButton(stringResource(R.string.search), filled = true) {
+            if (title.isBlank() && author.isBlank()) { empty = true; return@DialogButton }
+            if (busy) return@DialogButton
             busy = true; offline = false
             scope.launch {
                 results = try {
@@ -226,6 +235,10 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
     var genre by remember(book.id) { mutableStateOf(book.genre) }
     var picking by remember(book.id) { mutableStateOf(false) }
     var armed by remember { mutableStateOf(false) }
+    // A year is up to four digits ("180" for Marcus Aurelius); a Dewey number starts with three.
+    val yearOk = year.isBlank() || year.trim().matches(Regex("""\d{1,4}"""))
+    val ddcOk = ddc.isBlank() || CallNumber.cleanDdc(ddc).isNotEmpty()
+    val titled = title.isNotBlank() || book.isbn.isNotEmpty() || book.lccn.isNotEmpty()
 
     // Fill in whatever a lookup brings back while the dialog is open, if not yet typed over.
     LaunchedEffect(book) {
@@ -236,7 +249,8 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
         if (genre.isEmpty()) genre = book.genre
     }
     // An armed delete disarms itself, so a stray tap later finds nothing live.
-    LaunchedEffect(armed) { if (armed) { delay(4000); armed = false } }
+    // Six seconds: the panel takes one or two of them just to show the question.
+    LaunchedEffect(armed) { if (armed) { delay(6000); armed = false } }
 
     fun edited() = book.copy(
         title = title.trim(), author = author.trim(), year = year.trim(),
@@ -249,8 +263,11 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
         Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState())) {
             Field(title, { title = it }, R.string.field_title)
             Field(author, { author = it }, R.string.field_author)
+            if (!titled) Note(stringResource(R.string.edit_needs_title))
             Field(year, { year = it }, R.string.field_year, KeyboardType.Number)
+            if (!yearOk) Note(stringResource(R.string.edit_bad_year))
             Field(ddc, { ddc = it }, R.string.field_dewey, KeyboardType.Decimal)
+            if (!ddcOk) Note(stringResource(R.string.edit_bad_dewey))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextMMD(text = stringResource(R.string.field_copies))
                 Spacer(Modifier.weight(1f))
@@ -308,12 +325,15 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             // Two to a row, so the whole dialog fits a 480x800 screen without scrolling.
             Row {
-                Pair(stringResource(R.string.save), Modifier.weight(1f), filled = true) { lib.update(edited()); dismiss() }
+                Pair(stringResource(R.string.save), Modifier.weight(1f), filled = true) {
+                    if (yearOk && ddcOk && titled) { lib.update(edited()); dismiss() }
+                }
                 Pair(stringResource(R.string.cancel), Modifier.weight(1f), onClick = dismiss)
             }
             Row {
                 if (book.isbn.isNotEmpty() || book.lccn.isNotEmpty()) {
                     Pair(stringResource(R.string.look_again), Modifier.weight(1f)) {
+                        if (!(yearOk && ddcOk && titled)) return@Pair
                         lib.update(edited()); lib.retry(book.id); dismiss()
                     }
                 }
@@ -332,23 +352,25 @@ fun MenuDialog(lib: Library, dismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var cloud by remember { mutableStateOf(false) }
     var about by remember { mutableStateOf(false) }
-    val exported = stringResource(R.string.exported)
-    val exportFailed = stringResource(R.string.export_failed)
-    val importFailed = stringResource(R.string.import_failed)
+    // What the last save or read of a spreadsheet did, in a line that stays until the next.
+    var said by remember { mutableStateOf<String?>(null) }
 
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) scope.launch {
-            val ok = lib.export(uri)
-            Toast.makeText(context, if (ok) exported else exportFailed, Toast.LENGTH_SHORT).show()
-            dismiss()
+            val n = lib.export(uri)
+            said = if (n == null) context.getString(R.string.export_failed)
+            else context.resources.getQuantityString(R.plurals.exported, n, n)
         }
     }
     val load = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
-            val n = lib.import(uri)
-            val msg = if (n == null) importFailed else context.getString(R.string.imported, n)
-            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-            dismiss()
+            val r = lib.import(uri)
+            said = when {
+                r == null -> context.getString(R.string.import_failed)
+                r.added == 0 && r.read == 0 -> context.getString(R.string.import_none)
+                else -> context.resources.getQuantityString(R.plurals.imported, r.added, r.added) +
+                    if (r.read > r.added) " " + context.resources.getQuantityString(R.plurals.import_had, r.read - r.added, r.read - r.added) else ""
+            }
         }
     }
 
@@ -367,6 +389,7 @@ fun MenuDialog(lib: Library, dismiss: () -> Unit) {
         DialogButton(stringResource(R.string.import_csv)) {
             load.launch(arrayOf("text/*", "application/csv", "application/octet-stream"))
         }
+        said?.let { Note(it) }
         val jumpShown by rememberListJumpShown()
         DialogButton(
             stringResource(R.string.list_jump_menu, stringResource(if (jumpShown) R.string.list_jump_shown else R.string.list_jump_hidden))
@@ -399,6 +422,8 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
     val noBrowser = stringResource(R.string.cloud_no_browser)
     val unreachable = stringResource(R.string.cloud_unreachable)
     val notLogin = stringResource(R.string.cloud_qr_not_login)
+    val noServer = stringResource(R.string.cloud_no_server)
+    val missing = stringResource(R.string.cloud_missing)
     var qr by remember { mutableStateOf(false) }
     val askCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { qr = it }
 
@@ -445,8 +470,8 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                 }
                 Field(server, { server = it; problem = null }, R.string.cloud_server, KeyboardType.Uri, KeyboardCapitalization.None)
                 if (typed) {
-                    Field(user, { user = it }, R.string.cloud_user, caps = KeyboardCapitalization.None)
-                    Field(password, { password = it }, R.string.cloud_app_password, KeyboardType.Password, KeyboardCapitalization.None, secret = true)
+                    Field(user, { user = it; problem = null }, R.string.cloud_user, caps = KeyboardCapitalization.None)
+                    Field(password, { password = it; problem = null }, R.string.cloud_app_password, KeyboardType.Password, KeyboardCapitalization.None, secret = true)
                     Note(stringResource(R.string.cloud_app_password_note))
                 }
                 problem?.let { Note(it) }
@@ -454,7 +479,8 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                 Spacer(Modifier.height(6.dp))
                 if (!typed) {
                     DialogButton(stringResource(R.string.cloud_sign_in), filled = true) {
-                        if (server.isBlank() || waiting) return@DialogButton
+                        if (server.isBlank()) { problem = noServer; return@DialogButton }
+                        if (waiting) return@DialogButton
                         scope.launch {
                             val started = runCatching { withContext(Dispatchers.IO) { LoginFlow.start(server) } }.getOrNull()
                             if (started == null) { problem = unreachable; return@launch }
@@ -480,7 +506,7 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                     DialogButton(stringResource(R.string.cloud_type_password)) { typed = true }
                 } else {
                     DialogButton(stringResource(R.string.cloud_sign_in), filled = true) {
-                        if (server.isBlank() || user.isBlank() || password.isEmpty()) return@DialogButton
+                        if (server.isBlank() || user.isBlank() || password.isEmpty()) { problem = missing; return@DialogButton }
                         lib.signIn(Account(LoginFlow.normalise(server), user.trim(), password.trim()))
                     }
                 }
@@ -508,16 +534,18 @@ private fun Pair(text: String, modifier: Modifier, filled: Boolean = false, onCl
 fun ByHandDialog(lib: Library, dismiss: () -> Unit, added: (Long) -> Unit) {
     var title by remember { mutableStateOf("") }
     var author by remember { mutableStateOf("") }
+    var untitled by remember { mutableStateOf(false) }
 
     EInkDialog(onDismiss = dismiss) {
         Title(stringResource(R.string.by_hand_heading))
         Note(stringResource(R.string.by_hand_note))
         Spacer(Modifier.height(6.dp))
-        Field(title, { title = it }, R.string.field_title, caps = KeyboardCapitalization.Words)
+        Field(title, { title = it; untitled = false }, R.string.field_title, caps = KeyboardCapitalization.Words)
+        if (untitled) Note(stringResource(R.string.edit_needs_title))
         Field(author, { author = it }, R.string.field_author, caps = KeyboardCapitalization.Words)
         Spacer(Modifier.height(6.dp))
         DialogButton(stringResource(R.string.add), filled = true) {
-            if (title.isNotBlank()) { added(lib.addByHand(title, author).id); dismiss() }
+            if (title.isNotBlank()) { added(lib.addByHand(title, author).id); dismiss() } else untitled = true
         }
         DialogButton(stringResource(R.string.close), onClick = dismiss)
     }

@@ -24,9 +24,10 @@ or by hand.
   printed ISBN line (on the copyright page, or "ISBN 978-…" on the back) in the box. It is
   read on the phone, and taken only when its check digit is right.
 - **Type a number** takes an ISBN, or an LCCN from the copyright page of a book printed
-  before ISBNs.
-- **Say it instead**, with the keyboard's own voice typing (Gboard, FUTO): a title, or a number
-  spoken as words ("nine seven eight oh one four…"), which Shelf turns back into digits.
+  before ISBNs. It opens on the number keyboard; **Letter keyboard** changes it, for an
+  LCCN's letters or an ISBN-10's closing X.
+- **Say it instead**, with the letter keyboard's own voice typing (Gboard, FUTO): a title, or a
+  number spoken as words ("nine seven eight oh one four…"), which Shelf turns back into digits.
 - **Search by title** searches the Library of Congress by title and author, or adds the book by
   hand.
 - A barcode that isn't an ISBN (often a price code on a paperback) is turned away with a
@@ -35,8 +36,8 @@ or by hand.
   has a recording of it (on the card or on its Audiobookshelf server): it opens the book
   there. Audiobooks answers Shelf alone, and only about the book asked for.
 
-Without a connection, books are still scanned and kept. They are looked up when the
-connection comes back.
+Without a connection, books are still scanned and kept. They are looked up as soon as the
+connection comes back, and again each time the app is opened.
 
 ## Shelf order
 

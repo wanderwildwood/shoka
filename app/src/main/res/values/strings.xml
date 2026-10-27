@@ -79,21 +79,39 @@
     <string name="filter">Search the catalogue</string>
     <string name="needs_attention">To fix</string>
     <string name="unclassified_dewey">No Dewey number — by author</string>
-    <string name="empty_shelf">Nothing catalogued yet.</string>
+    <string name="empty_shelf">Nothing catalogued yet. Scan a book, or add one on the Scan page.</string>
+    <string name="recent_empty">Books you scan or add show here, newest first.</string>
+    <string name="filter_none">No book matches “%1$s”.</string>
+    <string name="attention_none">Nothing to fix: every book is found and has its number.</string>
 
     <string name="menu">Menu</string>
     <string name="export_csv">Save as a spreadsheet (CSV)</string>
     <string name="import_csv">Add from a spreadsheet (CSV)</string>
-    <string name="exported">Saved.</string>
+    <plurals name="exported">
+        <item quantity="one">Saved %1$d book to the file.</item>
+        <item quantity="other">Saved %1$d books to the file.</item>
+    </plurals>
     <string name="export_failed">Couldn\'t save the file.</string>
-    <string name="imported">Added %1$d books.</string>
+    <plurals name="imported">
+        <item quantity="one">Added %1$d book.</item>
+        <item quantity="other">Added %1$d books.</item>
+    </plurals>
+    <!-- After "Added N books." when the file also had books the catalogue already had -->
+    <plurals name="import_had">
+        <item quantity="one">%1$d was here already.</item>
+        <item quantity="other">%1$d were here already.</item>
+    </plurals>
+    <string name="import_none">That file has no books in it.</string>
     <string name="import_failed">Couldn\'t read that file.</string>
 
     <string name="manual_title">Type a number</string>
     <string name="manual_label">ISBN, or LCCN from the copyright page</string>
     <string name="manual_bad">That isn\'t a valid ISBN or LCCN.</string>
     <!-- Under the empty number field: the keyboard's voice typing works here -->
-    <string name="manual_say">Or say it with your keyboard\'s microphone.</string>
+    <string name="manual_say">Say it with the keyboard\'s microphone, or type an LCCN\'s letters.</string>
+    <string name="manual_letters">Letter keyboard, for voice</string>
+    <string name="manual_numbers">Number keyboard</string>
+    <string name="manual_empty">Type the number first.</string>
     <!-- Under the number field when spoken words were turned into digits. %1$s is the number -->
     <string name="manual_looked_up">Looked up as %1$s</string>
     <string name="add">Add</string>
@@ -107,6 +125,7 @@
     <string name="searching">Searching…</string>
     <string name="search_none">Nothing found. Try fewer words, or add it by hand.</string>
     <string name="search_offline">No connection.</string>
+    <string name="search_empty">Type a title or an author to search for.</string>
     <string name="add_by_hand">None of these — add it by hand</string>
     <string name="by_hand_heading">Add a book by hand</string>
     <string name="by_hand_note">For a book with no barcode or number, or one the library doesn\'t know. The rest can go in on its page.</string>
@@ -122,7 +141,10 @@
     <!-- On a book's page, only when Audio Reading has a recording of it: opens it there -->
     <string name="listen">Listen</string>
     <string name="delete">Delete</string>
-    <string name="delete_armed">Tap again</string>
+    <string name="delete_armed">Delete — tap again</string>
+    <string name="edit_needs_title">A book needs a title.</string>
+    <string name="edit_bad_year">A year is up to four digits.</string>
+    <string name="edit_bad_dewey">A Dewey number starts with three digits, like 823.8.</string>
     <string name="field_fiction">Fiction</string>
     <string name="field_genre">Shelf</string>
     <string name="yes">Yes</string>
@@ -139,6 +161,8 @@
     <string name="cloud_waiting">Finish signing in in the browser; this waits for it.</string>
     <string name="cloud_no_browser">There is no browser on this phone. Type an app password instead.</string>
     <string name="cloud_unreachable">Couldn\'t reach that server.</string>
+    <string name="cloud_no_server">Type the server\'s address first.</string>
+    <string name="cloud_missing">Fill in the server address, login name and app password.</string>
     <string name="cloud_signed_in">%1$s on %2$s</string>
     <string name="cloud_syncing">Syncing…</string>
     <string name="cloud_failed">The last sync didn\'t go through. It will try again after the next change.</string>
@@ -158,10 +182,15 @@
     <string name="about">About</string>
     <string name="about_title">Shelf %1$s</string>
     <string name="about_what">Scan a book\'s barcode and it finds the book\'s call number, then lists the whole collection in shelf order.</string>
-    <string name="about_sources">Book details from the Library of Congress catalogue and Open Library.</string>
-    <string name="about_licence">GNU General Public License v3</string>
-    <string name="about_bundled">Barcodes are read with zxing-cpp, and printed numbers with Tesseract through Tesseract4Android, all Apache 2.0.</string>
-    <string name="about_feed_the_llamas">feed the llamas</string>
+    <string name="about_privacy_heading">Privacy</string>
+    <string name="about_privacy_lookups">To look a book up, Shelf sends its ISBN or LCCN, or the title and author you search for, to the Library of Congress catalogue (lx2.loc.gov) and to Open Library (openlibrary.org). The Library of Congress answers only over plain HTTP, so what goes to it is not encrypted. Nothing else about you or your books goes with it, and neither needs an account.</string>
+    <string name="about_privacy_cloud">If you sign in to Nextcloud, the catalogue and a spreadsheet of the shelf order sync with the folder you choose on that server, and with every phone signed in to it. Your sign-in details are kept on this phone. Nothing is sent to the app\'s maker.</string>
+    <string name="about_privacy_phone">The camera reads barcodes, printed ISBNs and Nextcloud\'s sign-in code on the phone; no picture is kept or sent. If Audiobooks is installed, a book\'s page asks it, on the phone, whether it has that book. There are no ads, no analytics and no tracking. Spreadsheets you save go only where you choose to save them.</string>
+    <string name="about_terms_heading">Terms</string>
+    <string name="about_terms">This app is free software under the GNU General Public License v3. It comes with no warranty: use it at your own risk. Call numbers come from the catalogues and can be wrong.</string>
+    <string name="about_open_source_heading">Open source</string>
+    <string name="about_bundled">Built with Mudita MMD, AndroidX and Jetpack Compose with CameraX, and Kotlin with kotlinx.coroutines, all Apache 2.0. Barcodes are read with zxing-cpp, and printed numbers with Tesseract and its English model through Tesseract4Android, all Apache 2.0. The Lato typeface, SIL Open Font Licence 1.1. Icons from Material Symbols, Apache 2.0.</string>
+    <string name="about_feed_the_llamas">Feed the llamas</string>
     <string name="about_no_browser">There is no browser on this phone to open that with.</string>
     <string name="about_close">Close</string>
     <string name="list_jump_setting">Letters and page dots</string>

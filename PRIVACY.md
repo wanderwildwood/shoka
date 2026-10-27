@@ -3,7 +3,7 @@
 Shelf has no account of its own and no server of its own. It sends nothing anywhere except
 as described here.
 
-**The camera** is used only to read barcodes, and an ISBN printed as text, on the phone. No picture is kept or sent.
+**The camera** is used only to read barcodes, an ISBN printed as text, and the QR code Nextcloud shows for signing in, on the phone. No picture is kept or sent.
 
 **Looking a book up** sends its ISBN or LCCN, or the title and author you search for, to the
 Library of Congress (`lx2.loc.gov`) and to Open Library (`openlibrary.org`). The Library of

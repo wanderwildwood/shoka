@@ -1,6 +1,8 @@
 package com.wanderwildwood.shoka
 
 import android.app.Application
+import android.net.ConnectivityManager
+import android.net.Network
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -37,6 +39,16 @@ class Library(app: Application) : AndroidViewModel(app) {
     private val writeLock = Mutex()
     private val syncLock = Mutex()
     private val queue = Channel<Long>(Channel.UNLIMITED)
+    /** What is in [queue] and not yet answered, so a book is never asked about twice at once. */
+    private val queued = java.util.Collections.synchronizedSet(HashSet<Long>())
+
+    /** A connection coming back picks up what waited for one, without a tap. */
+    private val connectivity = app.getSystemService(ConnectivityManager::class.java)
+    private val network = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            viewModelScope.launch { resume() }
+        }
+    }
 
     /** Everything, deleted records included, because a sync has to pass deletions on. */
     private val all = MutableStateFlow<List<Book>>(emptyList())
@@ -75,7 +87,7 @@ class Library(app: Application) : AndroidViewModel(app) {
             lastId = loaded.maxOfOrNull { it.id } ?: 0L
             all.value = loaded
             loaded.filter { !it.deleted && (it.status == Status.LOOKING || it.status == Status.OFFLINE) }
-                .forEach { queue.trySend(it.id) }
+                .forEach { enqueue(it.id) }
             syncNow()
             fillGenres()
         }
@@ -84,9 +96,28 @@ class Library(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             while (true) {
                 delay(60_000)
-                books.value.filter { it.status == Status.OFFLINE }.forEach { queue.trySend(it.id) }
+                books.value.filter { it.status == Status.OFFLINE }.forEach { enqueue(it.id) }
             }
         }
+        // Called at once when there is a network already, which costs nothing: nothing waits yet.
+        runCatching { connectivity?.registerDefaultNetworkCallback(network) }
+    }
+
+    override fun onCleared() {
+        runCatching { connectivity?.unregisterNetworkCallback(network) }
+    }
+
+    /**
+     * Books that waited for a connection are looked up again, and a sync that failed is tried
+     * again: when the network comes back, and each time the app comes to the front.
+     */
+    fun resume() {
+        books.value.filter { it.status == Status.OFFLINE }.forEach { enqueue(it.id) }
+        if (account.value != null && syncState.value == SyncState.FAILED) syncNow()
+    }
+
+    private fun enqueue(id: Long) {
+        if (queued.add(id)) queue.trySend(id)
     }
 
     private fun newId(): Long {
@@ -135,7 +166,7 @@ class Library(app: Application) : AndroidViewModel(app) {
         val stamped = b.copy(added = now(), modified = now())
         all.update { it + stamped }
         changed()
-        if (stamped.status == Status.LOOKING) queue.trySend(stamped.id)
+        if (stamped.status == Status.LOOKING) enqueue(stamped.id)
         return stamped
     }
 
@@ -147,7 +178,7 @@ class Library(app: Application) : AndroidViewModel(app) {
 
     fun retry(id: Long) {
         change(id) { it.copy(status = Status.LOOKING) }
-        queue.trySend(id)
+        enqueue(id)
     }
 
     fun retryAll() {
@@ -162,6 +193,7 @@ class Library(app: Application) : AndroidViewModel(app) {
 
     private suspend fun work() {
         for (id in queue) {
+            queued.remove(id)
             val b = find(id) ?: continue
             if (b.status == Status.FOUND) continue
             val answer = try {
@@ -276,7 +308,7 @@ class Library(app: Application) : AndroidViewModel(app) {
                 all.value = Merge.merge(merged, all.value)
                 lastId = maxOf(lastId, all.value.maxOfOrNull { it.id } ?: 0L)
                 save()
-                all.value.filter { !it.deleted && it.status == Status.LOOKING }.forEach { queue.trySend(it.id) }
+                all.value.filter { !it.deleted && it.status == Status.LOOKING }.forEach { enqueue(it.id) }
                 lastSync.value = now()
                 prefs.edit().putLong("lastSync", lastSync.value).apply()
                 syncState.value = SyncState.DONE
@@ -304,16 +336,22 @@ class Library(app: Application) : AndroidViewModel(app) {
         syncNow()
     }
 
-    suspend fun export(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+    /** Writes the shelf order as a spreadsheet. Returns how many books went in, or null on failure. */
+    suspend fun export(uri: Uri): Int? = withContext(Dispatchers.IO) {
         runCatching {
-            val text = Csv.write(shelf.value, system.value, ::sectionName)
+            val rows = shelf.value
+            val text = Csv.write(rows, system.value, ::sectionName)
             getApplication<Application>().contentResolver.openOutputStream(uri, "wt")!!
                 .use { it.write(text.toByteArray()) }
-        }.isSuccess
+            rows.size
+        }.getOrNull()
     }
 
-    /** Adds what the file has that the catalogue doesn't. Returns how many, or null on failure. */
-    suspend fun import(uri: Uri): Int? {
+    /** How many books a spreadsheet had, and how many of them were new here. */
+    data class Imported(val read: Int, val added: Int)
+
+    /** Adds what the file has that the catalogue doesn't. Null when the file can't be read. */
+    suspend fun import(uri: Uri): Imported? {
         val text = withContext(Dispatchers.IO) {
             runCatching {
                 getApplication<Application>().contentResolver.openInputStream(uri)!!
@@ -328,9 +366,11 @@ class Library(app: Application) : AndroidViewModel(app) {
                     (n.isbn.isEmpty() && h.title == n.title && h.author == n.author)
             }
         }.map { it.copy(modified = now()) }
-        all.update { it + adding }
-        changed()
-        return adding.size
+        if (adding.isNotEmpty()) {
+            all.update { it + adding }
+            changed()
+        }
+        return Imported(read = fresh.size, added = adding.size)
     }
 
     private fun now() = System.currentTimeMillis()

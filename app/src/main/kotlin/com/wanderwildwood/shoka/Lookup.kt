@@ -44,6 +44,9 @@ object Lookup {
 
     private const val LOC = "http://lx2.loc.gov:210/lcdb"
     private const val AGENT = "Shelf/0.1 (personal book catalogue; Android)"
+    const val SEARCH_MAX = 10
+    private val initialStop = Regex("""(^|[\s.])\p{L}\.$""")
+    private val fourDigits = Regex("""\d{4}""")
 
     suspend fun byIsbn(isbn13: String): Answer = withContext(Dispatchers.IO) {
         var offline = false
@@ -102,7 +105,9 @@ object Lookup {
             if (title.isNotBlank()) add("bath.title=\"${title.trim().replace("\"", "")}\"")
             if (author.isNotBlank()) add("bath.author=\"${author.trim().replace("\"", "")}\"")
         }
-        if (terms.isEmpty()) emptyList() else sru(terms.joinToString(" and "), 25)
+        // Ten is a screenful and a quarter of the download: twenty-five full MARC records ran
+        // to 130 KB, and every one was read through on the phone before any showed.
+        if (terms.isEmpty()) emptyList() else sru(terms.joinToString(" and "), SEARCH_MAX)
     }
 
     /** An LoC record for the same title and author, one with a Dewey number if any has. */
@@ -207,7 +212,7 @@ object Lookup {
         // MARC ends fields with punctuation for the next one; an initial's full stop stays.
         fun strip(s: String): String {
             val t = s.trim().trimEnd('/', ':', ';', ',', ' ', '=').trim()
-            return if (t.endsWith('.') && !Regex("""(^|[\s.])\p{L}\.$""").containsMatchIn(t)) t.dropLast(1).trim() else t
+            return if (t.endsWith('.') && !initialStop.containsMatchIn(t)) t.dropLast(1).trim() else t
         }
 
         val title = listOf(first("245", 'a'), first("245", 'b'))
@@ -216,7 +221,7 @@ object Lookup {
             first("100", 'a').ifEmpty { first("110", 'a') }.ifEmpty { first("111", 'a') }
                 .ifEmpty { first("245", 'c') }
         )
-        val year = Regex("""\d{4}""").find(first("264", 'c').ifEmpty { first("260", 'c') })
+        val year = fourDigits.find(first("264", 'c').ifEmpty { first("260", 'c') })
             ?.value ?: ""
         val fixed = f["008"]?.firstOrNull()?.get(' ')
         val lcRaw = listOf(first("050", 'a'), first("050", 'b')).filter { it.isNotEmpty() }
@@ -263,7 +268,7 @@ object Lookup {
         return Found(
             title = title,
             author = author,
-            year = Regex("""\d{4}""").find(o.optString("publish_date"))?.value ?: "",
+            year = fourDigits.find(o.optString("publish_date"))?.value ?: "",
             lc = strings(classes, "lc_classifications").map(CallNumber::cleanLc)
                 .firstOrNull { it.isNotEmpty() } ?: "",
             ddc = strings(classes, "dewey_decimal_class").map(CallNumber::cleanDdc)
@@ -281,7 +286,9 @@ object Lookup {
 object Match {
     /** LoC's search finds "Marquez" and not "Márquez", so accents come off what is asked. */
     fun fold(s: String): String =
-        Normalizer.normalize(s, Normalizer.Form.NFD).replace(Regex("""\p{Mn}+"""), "")
+        Normalizer.normalize(s, Normalizer.Form.NFD).replace(marks, "")
+
+    private val marks = Regex("""\p{Mn}+""")
 
     /**
      * MARC 008 position 33, a book's literary form: 1 fiction, f novels, j short stories;
@@ -309,17 +316,21 @@ object Match {
     fun genre(subjects: List<String>, juvenile: Boolean): String {
         if (juvenile) return "children"
         val s = subjects.map { fold(it).lowercase() }
-        fun any(vararg words: String) = s.any { h -> words.any { Regex("""\b$it\b""").containsMatchIn(h) } }
-        return when {
-            any("detective", "mystery", "crime fiction", "thrillers", "suspense fiction", "spy stories", "espionage fiction") -> "crime"
-            any("science fiction", "dystopias", "dystopia", "dystopian", "apocalyptic fiction", "post-apocalyptic fiction") -> "scifi"
-            any("horror", "ghost stories") -> "horror"
-            any("fantasy", "fantasy fiction", "fantastic fiction") -> "fantasy"
-            any("romance fiction", "romance", "romantic suspense fiction") -> "romance"
-            any("historical fiction", "fiction, historical") -> "historical"
-            else -> ""
-        }
+        return genreRules.firstOrNull { (_, words) -> s.any { h -> words.any { it.containsMatchIn(h) } } }?.first ?: ""
     }
+
+    /**
+     * The rules in the order they win, each word made into its pattern once rather than again
+     * for every heading of every record a search brings back.
+     */
+    private val genreRules: List<Pair<String, List<Regex>>> = listOf(
+        "crime" to listOf("detective", "mystery", "crime fiction", "thrillers", "suspense fiction", "spy stories", "espionage fiction"),
+        "scifi" to listOf("science fiction", "dystopias", "dystopia", "dystopian", "apocalyptic fiction", "post-apocalyptic fiction"),
+        "horror" to listOf("horror", "ghost stories"),
+        "fantasy" to listOf("fantasy", "fantasy fiction", "fantastic fiction"),
+        "romance" to listOf("romance fiction", "romance", "romantic suspense fiction"),
+        "historical" to listOf("historical fiction", "fiction, historical"),
+    ).map { (code, words) -> code to words.map { Regex("""\b$it\b""") } }
 
     fun mainTitle(t: String) = t.substringBefore(':').substringBefore(" / ").trim()
 
@@ -330,8 +341,11 @@ object Match {
     }
 
     private fun key(t: String) = fold(mainTitle(t)).lowercase()
-        .replace(Regex("""^(the|a|an)\s+"""), "")
-        .replace(Regex("""[^\p{L}\p{N}]+"""), "")
+        .replace(article, "")
+        .replace(notWord, "")
+
+    private val article = Regex("""^(the|a|an)\s+""")
+    private val notWord = Regex("""[^\p{L}\p{N}]+""")
 
     /** Same main title, and the same surname when both say one. */
     fun sameWork(a: Found, b: Found): Boolean {
