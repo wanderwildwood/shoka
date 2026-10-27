@@ -26,5 +26,12 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         library.resume()
+        // Another phone's scans turn up while this one is open; nothing is asked while it is not.
+        library.watch(true)
+    }
+
+    override fun onStop() {
+        library.watch(false)
+        super.onStop()
     }
 }

@@ -77,6 +77,14 @@ class Library(app: Application) : AndroidViewModel(app) {
     val lastSync = MutableStateFlow(prefs.getLong("lastSync", 0L))
     private var pendingSync: Job? = null
 
+    /**
+     * The catalogue's etag on the server as this phone last read or wrote it. While the app is
+     * open the etag is asked for every [WATCH_MS] (a few hundred bytes, no catalogue), and only
+     * when it has moved, because another phone wrote, is the catalogue fetched and merged.
+     */
+    private var remoteTag: String? = null
+    private var watching: Job? = null
+
     private var lastId = 0L
 
     init {
@@ -266,7 +274,7 @@ class Library(app: Application) : AndroidViewModel(app) {
         if (account.value == null) return
         pendingSync?.cancel()
         pendingSync = viewModelScope.launch {
-            delay(8_000)
+            delay(SETTLE_MS)
             syncNow()
         }
     }
@@ -299,11 +307,13 @@ class Library(app: Application) : AndroidViewModel(app) {
                 val result = withContext(Dispatchers.IO) {
                     runCatching { Cloud(acct, folder.value).sync(sent, system.value, ::sectionName) }
                 }
-                val merged = result.getOrNull()
-                if (merged == null) {
+                val synced = result.getOrNull()
+                if (synced == null) {
                     syncState.value = SyncState.FAILED
                     return@withLock
                 }
+                remoteTag = synced.etag
+                val merged = synced.books
                 // Anything changed here while the sync was out is newer, and wins.
                 all.value = Merge.merge(merged, all.value)
                 lastId = maxOf(lastId, all.value.maxOfOrNull { it.id } ?: 0L)
@@ -316,6 +326,31 @@ class Library(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Watches the shared catalogue while the app is on screen, so books another phone scans
+     * turn up here within [WATCH_MS]: started when the app comes to the front, stopped when it
+     * goes. Nothing runs in the background, and there is no push server.
+     */
+    fun watch(on: Boolean) {
+        watching?.cancel()
+        watching = if (!on) null else viewModelScope.launch {
+            while (true) {
+                look()
+                delay(WATCH_MS)
+            }
+        }
+    }
+
+    /** One look at the server's etag; a sync when it differs from what this phone last saw. */
+    private suspend fun look() {
+        val acct = account.value ?: return
+        if (syncLock.isLocked || pendingSync?.isActive == true) return
+        val tag = withContext(Dispatchers.IO) {
+            runCatching { Cloud(acct, folder.value).etag() }.getOrNull()
+        } ?: return // Not reachable: the next look, or the network coming back, tries again.
+        if (Watch.moved(remoteTag, tag)) syncNow()?.join()
+    }
+
     fun signIn(a: Account) {
         prefs.edit().putString("account", a.toJson().toString()).apply()
         account.value = a
@@ -324,6 +359,7 @@ class Library(app: Application) : AndroidViewModel(app) {
 
     fun signOut() {
         prefs.edit().remove("account").remove("lastSync").apply()
+        remoteTag = null
         account.value = null
         lastSync.value = 0L
         syncState.value = SyncState.OFF
@@ -332,6 +368,7 @@ class Library(app: Application) : AndroidViewModel(app) {
     fun setFolder(f: String) {
         val clean = f.trim().trim('/').ifEmpty { "Books" }
         folder.value = clean
+        remoteTag = null
         prefs.edit().putString("folder", clean).apply()
         syncNow()
     }
@@ -374,4 +411,17 @@ class Library(app: Application) : AndroidViewModel(app) {
     }
 
     private fun now() = System.currentTimeMillis()
+
+    companion object {
+        /** How often an open app asks whether the shared catalogue has changed. */
+        const val WATCH_MS = 15_000L
+        /** How long after the last change this phone writes, so a run of scans is one write. */
+        const val SETTLE_MS = 3_000L
+    }
+}
+
+/** The rule behind [Library.watch], apart from the network so it can be tested. */
+object Watch {
+    /** Whether the server's [now] etag means another phone wrote since this one last synced. */
+    fun moved(seen: String?, now: String): Boolean = seen == null || seen != now
 }

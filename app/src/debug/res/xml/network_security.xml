@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: as the release's, plus plain HTTP to the computer an emulator runs on
+     (10.0.2.2), where a throwaway WebDAV server stands in for Nextcloud in the sync tests. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">lx2.loc.gov</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

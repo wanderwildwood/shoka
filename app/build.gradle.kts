@@ -16,8 +16,8 @@ android {
         // Supernote's tablets, which run Android 11 (API 30).
         minSdk = 30
         targetSdk = 31
-        versionCode = 13
-        versionName = "0.1.12"
+        versionCode = 14
+        versionName = "0.1.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -50,6 +50,9 @@ android {
     buildTypes {
         getByName("debug") {
             isMinifyEnabled = false
+            // -PsecondPhone=true installs a second copy beside the first, so two "phones" can sync
+            // against one test server on a single emulator. Never set for a release.
+            if (providers.gradleProperty("secondPhone").orNull == "true") applicationIdSuffix = ".second"
             ndk { abiFilters += "x86_64" }
             realSigningConfig?.let { signingConfig = it }
         }

@@ -110,6 +110,28 @@ class Cloud(private val account: Account, folder: String) {
         return books to etag
     }
 
+    /**
+     * The catalogue's etag on the server without fetching it: "" when there is no catalogue yet.
+     * Throws [IOException] when the server can't be reached.
+     */
+    fun etag(): String {
+        val c = open("$dir/catalogue.json", "HEAD", account)
+        val code = c.responseCode
+        val tag = c.getHeaderField("ETag") ?: ""
+        c.disconnect()
+        return when (code) {
+            in 200..299 -> tag
+            404 -> ""
+            else -> throw Refused("HTTP $code")
+        }
+    }
+
+    /** What a sync left on the server: the books, and the etag they were written or read under (null when not said). */
+    class Synced(val books: List<Book>, val etag: String?)
+
+    /** The etag a successful write answered with, if it said. */
+    private var written: String? = null
+
     /** False when someone else wrote first (the etag moved), so the caller merges again. */
     private fun put(name: String, body: String, type: String, ifMatch: String?, ifNone: Boolean): Boolean {
         val c = open("$dir/$name", "PUT", account)
@@ -119,6 +141,7 @@ class Cloud(private val account: Account, folder: String) {
         if (ifNone) c.setRequestProperty("If-None-Match", "*")
         c.outputStream.use { it.write(body.toByteArray()) }
         val code = c.responseCode
+        written = c.getHeaderField("ETag")
         c.disconnect()
         return when (code) {
             in 200..299 -> true
@@ -148,7 +171,7 @@ class Cloud(private val account: Account, folder: String) {
      * Brings [local] and the server's copy together and writes the result back. Returns the
      * merged list for this phone to keep.
      */
-    fun sync(local: List<Book>, system: CallNumber.System, sectionName: (String) -> String): List<Book> {
+    fun sync(local: List<Book>, system: CallNumber.System, sectionName: (String) -> String): Synced {
         repeat(4) {
             val remote = fetch()
             val merged = Merge.merge(local, remote?.first ?: emptyList())
@@ -161,10 +184,10 @@ class Cloud(private val account: Account, folder: String) {
                 ifNone = remote == null,
             )
             if (wrote) {
-                if (!unchanged) {
-                    put("shelf-order.csv", Csv.write(Shelf.order(merged, system), system, sectionName), "text/csv", null, false)
-                }
-                return merged
+                if (unchanged) return Synced(merged, remote!!.second.takeIf { it.isNotEmpty() })
+                val tag = written
+                put("shelf-order.csv", Csv.write(Shelf.order(merged, system), system, sectionName), "text/csv", null, false)
+                return Synced(merged, tag)
             }
         }
         throw Refused("busy")

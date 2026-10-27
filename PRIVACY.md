@@ -11,7 +11,8 @@ Congress serves this catalogue over plain HTTP only, so what is sent to it is no
 Nothing else about you or your other books goes with it.
 
 **Nextcloud**, only if you sign in: the catalogue is written to a folder on your own
-server. The app password that sign-in creates is kept in the app's private storage on the
+server. While the app is on screen it asks that server every 15 seconds whether the catalogue
+has changed, so books another phone adds show up; it asks nothing while the app is closed. The app password that sign-in creates is kept in the app's private storage on the
 phone; revoke it from Nextcloud's security settings at any time.
 
 The catalogue itself is kept in the app's private storage. The app does not back it up, and
