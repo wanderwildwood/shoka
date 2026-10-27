@@ -1,11 +1,14 @@
 package com.wanderwildwood.shoka
 
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.util.Base64
+import java.util.concurrent.TimeUnit
 
 /**
  * A Nextcloud account as its login page hands it over: the server, the login name, and an
@@ -156,14 +159,19 @@ class Cloud(private val account: Account, folder: String) {
     private fun makeFolder() {
         if (madeFolder) throw Refused("folder")
         madeFolder = true
-        // Each level in turn; an existing one answers 405, which is fine.
         val root = account.server.trimEnd('/') + "/remote.php/dav/files/" + path(account.user)
-        var at = root
-        for (part in dir.removePrefix(root).split('/').filter { it.isNotEmpty() }) {
-            at += "/$part"
-            val c = open(at, "MKCOL", account)
-            c.responseCode
-            c.disconnect()
+        val client = OkHttpClient.Builder()
+            .followRedirects(false)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+        val token = Base64.getEncoder().encodeToString("${account.user}:${account.password}".toByteArray())
+        for (level in Folders.levels(root, dir)) {
+            val request = Request.Builder().url(level).method("MKCOL", null)
+                .header("User-Agent", AGENT).header("Authorization", "Basic $token").build()
+            client.newCall(request).execute().use { r ->
+                if (!Folders.fine(r.code)) throw Refused("HTTP ${r.code}")
+            }
         }
     }
 
@@ -192,6 +200,18 @@ class Cloud(private val account: Account, folder: String) {
         }
         throw Refused("busy")
     }
+}
+
+/** The folders a sync folder needs, parent first, and which MKCOL answers mean "it is there". */
+object Folders {
+    /** Every level of [dir] below [root], in the order to create them: parent before child. */
+    fun levels(root: String, dir: String): List<String> {
+        var at = root.trimEnd('/')
+        return dir.removePrefix(root).split('/').filter { it.isNotEmpty() }.map { at += "/$it"; at }
+    }
+
+    /** Created (201), already there (405), or moved to its slash form (301/302/307/308). */
+    fun fine(code: Int): Boolean = code in 200..299 || code == 405 || code in listOf(301, 302, 307, 308)
 }
 
 object Merge {
