@@ -275,16 +275,14 @@ private fun ScanScreen(
         // The newest scan goes on top; without this the list keeps hold of the old top book.
         val recentList = rememberLazyListState()
         LaunchedEffect(recent.firstOrNull()?.id) { recentList.scrollToItem(0) }
-        ListJumpBox(recentList, ListJump.Pages, Modifier.weight(1f)) {
-            PagedColumn(Modifier.fillMaxSize(), state = recentList, onPullAtTop = if (pull.available) pull::pull else null) {
-                items(recent.size, key = { recent[it].id }) { i ->
-                    val b = recent[i]
-                    Column(Modifier.fillMaxWidth().clickable { open(b.id) }.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                        TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Small(statusLine(b, system), mono = hasCall(b, system))
-                    }
-                    HorizontalDividerMMD(thickness = 1.dp)
+        PagedColumn(Modifier.weight(1f).fillMaxWidth(), state = recentList, onPullAtTop = if (pull.available) pull::pull else null) {
+            items(recent.size, key = { recent[it].id }) { i ->
+                val b = recent[i]
+                Column(Modifier.fillMaxWidth().clickable { open(b.id) }.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Small(statusLine(b, system), mono = hasCall(b, system))
                 }
+                HorizontalDividerMMD(thickness = 1.dp)
             }
         }
     }
@@ -479,48 +477,30 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
             shown.isEmpty() -> TextMMD(text = stringResource(R.string.attention_none), modifier = Modifier.padding(16.dp))
         }
 
-        // Down the edge, the shelf's own order rather than A to Z: Dewey's ten hundreds, and in
-        // Sections fiction's initial above them. A book with no number has no mark of its own;
-        // it stands after the last of them.
-        val fiction = stringResource(R.string.section_fiction).take(1).uppercase()
-        val jump = remember(shown, system, fiction) {
-            val names = shown.map { p ->
-                when {
-                    system == CallNumber.System.SECTIONS && (p.section == Shelf.FICTION || p.section in Shelf.genres) -> fiction
-                    system == CallNumber.System.SECTIONS -> p.section
-                    p.classified -> p.book.ddc.trim().take(1)
-                    else -> ""
-                }
-            }
-            val labels = if (system == CallNumber.System.SECTIONS) listOf(fiction) + Shelf.deweyClasses else Shelf.deweyClasses
-            ListJump.Letters(names, labels = labels)
-        }
-        ListJumpBox(list, jump, Modifier.weight(1f).padding(top = 8.dp)) {
-            PagedColumn(Modifier.fillMaxSize(), state = list, onPullAtTop = if (pull.available) pull::pull else null) {
-                items(shown.size, key = { shown[it].book.id }) { i ->
-                    val p = shown[i]
-                    if (system == CallNumber.System.SECTIONS) {
-                        if (i == 0 || shown[i - 1].section != p.section) {
-                            if (i > 0) HorizontalDividerMMD(thickness = 2.dp)
-                            TextMMD(
-                                text = stringResource(R.string.section_count, sectionName(p.section), sizes[p.section] ?: 0),
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                            )
-                            HorizontalDividerMMD(thickness = 2.dp)
-                        }
-                    } else if (!p.classified && (i == 0 || shown[i - 1].classified)) {
-                        HorizontalDividerMMD(thickness = 2.dp)
+        PagedColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), state = list, onPullAtTop = if (pull.available) pull::pull else null) {
+            items(shown.size, key = { shown[it].book.id }) { i ->
+                val p = shown[i]
+                if (system == CallNumber.System.SECTIONS) {
+                    if (i == 0 || shown[i - 1].section != p.section) {
+                        if (i > 0) HorizontalDividerMMD(thickness = 2.dp)
                         TextMMD(
-                            text = stringResource(R.string.unclassified_dewey),
+                            text = stringResource(R.string.section_count, sectionName(p.section), sizes[p.section] ?: 0),
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                         HorizontalDividerMMD(thickness = 2.dp)
                     }
-                    ShelfRow(p, system) { open(p.book.id) }
-                    HorizontalDividerMMD(thickness = 1.dp)
+                } else if (!p.classified && (i == 0 || shown[i - 1].classified)) {
+                    HorizontalDividerMMD(thickness = 2.dp)
+                    TextMMD(
+                        text = stringResource(R.string.unclassified_dewey),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                    HorizontalDividerMMD(thickness = 2.dp)
                 }
+                ShelfRow(p, system) { open(p.book.id) }
+                HorizontalDividerMMD(thickness = 1.dp)
             }
         }
     }
