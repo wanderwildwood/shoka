@@ -29,7 +29,7 @@ or by hand.
 - **Say it instead**, with the letter keyboard's own voice typing (Gboard, FUTO): a title, or a
   number spoken as words ("nine seven eight oh one four…"), which Shelf turns back into digits.
 - **Search by title** searches the Library of Congress by title and author, or adds the book by
-  hand.
+  hand; so does the **+** in the top bar, for a book with nothing to look it up by.
 - A barcode that isn't an ISBN (often a price code on a paperback) is turned away with a
   low tone.
 - **Listen**, on a book's page, when [Audiobooks](https://github.com/wanderwildwood/mimidoku)
@@ -75,11 +75,11 @@ stories", "Science fiction" and the like), and its audience code for children's 
 
 ## Keeping the list
 
-The catalogue lives on the phone. **Menu → Save as a spreadsheet** writes it out in
+The catalogue lives on the phone. **Settings (the cog) → Save as a spreadsheet** writes it out in
 shelf order as a CSV (with each book's section, in the Sections order), and **Add from a
 spreadsheet** reads one back in.
 
-With a [Nextcloud](https://nextcloud.com/) account, **Menu → Nextcloud** keeps the
+With a [Nextcloud](https://nextcloud.com/) account, **Settings → Nextcloud** keeps the
 catalogue in a folder there (`Books` unless you choose another), as `catalogue.json` with
 a `shelf-order.csv` beside it. Every phone signed in to the same folder keeps the same
 list, so two people can scan different rooms at once. Sign in through the server's own

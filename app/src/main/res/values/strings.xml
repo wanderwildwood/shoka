@@ -84,7 +84,12 @@
     <string name="filter_none">No book matches “%1$s”.</string>
     <string name="attention_none">Nothing to fix: every book is found and has its number.</string>
 
-    <string name="menu">Menu</string>
+    <string name="settings">Settings</string>
+    <string name="back">Back</string>
+    <plurals name="book_count">
+        <item quantity="one">The shelf order, %1$d book</item>
+        <item quantity="other">The shelf order, %1$d books</item>
+    </plurals>
     <string name="export_csv">Save as a spreadsheet (CSV)</string>
     <string name="import_csv">Add from a spreadsheet (CSV)</string>
     <plurals name="exported">
@@ -164,6 +169,9 @@
     <string name="cloud_no_server">Type the server\'s address first.</string>
     <string name="cloud_missing">Fill in the server address, login name and app password.</string>
     <string name="cloud_signed_in">%1$s on %2$s</string>
+    <!-- Under Nextcloud in Settings: login, server, folder -->
+    <string name="cloud_signed_in_folder">%1$s on %2$s, folder %3$s</string>
+    <string name="cloud_off">Not set up</string>
     <string name="cloud_syncing">Syncing…</string>
     <string name="cloud_failed">The last sync didn\'t go through. It will try again after the next change.</string>
     <string name="cloud_last">Last synced %1$s</string>

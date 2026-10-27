@@ -11,13 +11,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -83,26 +83,40 @@ fun ShelfApp(lib: Library) {
     var tab by rememberSaveable { mutableStateOf(0) }
     var editing by remember { mutableStateOf<Long?>(null) }
     var event by remember { mutableStateOf<Event?>(null) }
-    var menu by remember { mutableStateOf(false) }
+    var settings by rememberSaveable { mutableStateOf(false) }
+    var about by remember { mutableStateOf(false) }
+    var byHand by remember { mutableStateOf(false) }
     val books by lib.books.collectAsStateWithLifecycle()
 
-    Column(
+    if (settings) {
+        // A screen of its own, so the Scan page and its camera are let go while it is up: the
+        // Nextcloud sign-in behind it can read its QR code with the camera.
+        SettingsScreen(lib, onBack = { settings = false }, onAbout = { about = true })
+    } else Column(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).systemBarsPadding().imePadding()
     ) {
-        // Scan and Shelf order are the app's two views; the menu is a menu, so it is the bar's.
+        // Scan and Shelf order are the app's two views; adding by hand, the settings and About
+        // are the bar's.
         TopAppBarMMD(
             title = { TextMMD(text = stringResource(R.string.app_name)) },
-            actions = { BarButton(Icons.More, stringResource(R.string.menu)) { menu = true } },
+            actions = {
+                BarButton(Icons.Add, stringResource(R.string.by_hand)) { byHand = true }
+                BarButton(Icons.Settings, stringResource(R.string.settings)) { settings = true }
+                BarButton(Icons.Info, stringResource(R.string.about)) { about = true }
+            },
         )
         StoneTabs(listOf(stringResource(R.string.tab_scan), stringResource(R.string.tab_shelf)), tab, { tab = it })
         when (tab) {
-            // The menu's QR sign-in needs the camera, and only one screen can hold it at a time.
-            0 -> ScanScreen(lib, books, event, { event = it }, { editing = it }, cameraOn = !menu)
+            0 -> ScanScreen(lib, books, event, { event = it }, { editing = it })
             else -> ShelfScreen(lib) { editing = it }
         }
     }
 
-    if (menu) MenuDialog(lib) { menu = false }
+    if (about) AboutDialog(onDismiss = { about = false })
+    if (byHand) ByHandDialog(lib, { byHand = false }) { id ->
+        event = Event.Added(id)
+        editing = id
+    }
 
     editing?.let { id ->
         val book = books.firstOrNull { it.id == id }
@@ -113,7 +127,7 @@ fun ShelfApp(lib: Library) {
 
 /** An icon in a top bar, with a target a thumb can find. */
 @Composable
-private fun BarButton(icon: ImageVector, description: String, onClick: () -> Unit) {
+fun BarButton(icon: ImageVector, description: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier.size(48.dp).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -130,24 +144,25 @@ private fun BarButton(icon: ImageVector, description: String, onClick: () -> Uni
 /** Two or more choices side by side: the chosen one filled, the rest outlined. */
 @Composable
 fun Choice(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val m = modifier.height(44.dp)
+    val m = modifier.height(48.dp)
+    val pad = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp)
     if (selected) {
-        ButtonMMD(onClick = onClick, modifier = m) { TextMMD(text = label, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
+        ButtonMMD(onClick = onClick, modifier = m, contentPadding = pad) { TextMMD(text = label, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
     } else {
-        OutlinedButtonMMD(onClick = onClick, modifier = m) { TextMMD(text = label, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
+        OutlinedButtonMMD(onClick = onClick, modifier = m, contentPadding = pad) { TextMMD(text = label, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
     }
 }
 
-/** A plain pressable line of text, for actions that don't need a button's weight. */
+/** A press that takes no more room than its words: bordered, 48dp tall, as every button here. */
 @Composable
-fun Link(label: String, modifier: Modifier = Modifier, bold: Boolean = true, onClick: () -> Unit) {
-    TextMMD(
-        text = label,
-        style = MaterialTheme.typography.bodyMedium,
-        fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
-        textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline,
-        modifier = modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
-    )
+fun SmallButton(label: String, modifier: Modifier = Modifier, filled: Boolean = false, onClick: () -> Unit) {
+    val m = modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)
+    val pad = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp)
+    if (filled) {
+        ButtonMMD(onClick = onClick, modifier = m, contentPadding = pad) { TextMMD(text = label, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
+    } else {
+        OutlinedButtonMMD(onClick = onClick, modifier = m, contentPadding = pad) { TextMMD(text = label, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
+    }
 }
 
 @Composable
@@ -164,7 +179,6 @@ private fun Small(text: String, modifier: Modifier = Modifier, mono: Boolean = f
 
 // ---------------------------------------------------------------- Scan
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ScanScreen(
     lib: Library,
@@ -172,7 +186,6 @@ private fun ScanScreen(
     event: Event?,
     setEvent: (Event?) -> Unit,
     open: (Long) -> Unit,
-    cameraOn: Boolean,
 ) {
     val context = LocalContext.current
     var granted by remember {
@@ -187,7 +200,6 @@ private fun ScanScreen(
     var readText by rememberSaveable { mutableStateOf(false) }
     var manual by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf(false) }
-    var byHand by remember { mutableStateOf(false) }
     val system by lib.system.collectAsStateWithLifecycle()
 
     val feedback = remember { Feedback(context) }
@@ -206,7 +218,7 @@ private fun ScanScreen(
     val camera = remember { hasCamera(context) }
     Column(Modifier.fillMaxSize()) {
         if (camera) Box(Modifier.fillMaxWidth().height(if (tall) 230.dp else 150.dp).clipToBounds().background(Color.Black)) {
-            if (granted && cameraOn) {
+            if (granted) {
                 val boxHeightPx = with(LocalDensity.current) { TextBox.HEIGHT.roundToPx() }
                 Scanner(
                     Modifier.fillMaxSize(), torch,
@@ -244,10 +256,13 @@ private fun ScanScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     TextMMD(text = stringResource(R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center)
-                    TextMMD(
-                        text = stringResource(R.string.camera_allow), color = Color.White, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { ask.launch(Manifest.permission.CAMERA) }.padding(12.dp),
-                    )
+                    Box(
+                        Modifier.padding(top = 8.dp).heightIn(min = 48.dp).border(1.dp, Color.White)
+                            .clickable { ask.launch(Manifest.permission.CAMERA) }.padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        TextMMD(text = stringResource(R.string.camera_allow), color = Color.White, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -256,12 +271,14 @@ private fun ScanScreen(
             EventCard(lib, books, event, setEvent, open)
         }
 
-        // Three ways in when the barcode won't do: its number typed, a title searched for, or the
-        // book written in by hand. They wrap to a second line rather than run off a narrow screen.
-        FlowRow(Modifier.fillMaxWidth()) {
-            Link(stringResource(R.string.type_number)) { manual = true }
-            Link(stringResource(R.string.search_title)) { search = true }
-            Link(stringResource(R.string.by_hand)) { byHand = true }
+        // Two ways in when the barcode won't do: its number typed, or a title searched for. The
+        // third, the book written in by hand, is the + in the bar.
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SmallButton(stringResource(R.string.type_number), Modifier.weight(1f)) { manual = true }
+            SmallButton(stringResource(R.string.search_title), Modifier.weight(1f)) { search = true }
         }
 
         HorizontalDividerMMD(thickness = 1.dp)
@@ -293,10 +310,6 @@ private fun ScanScreen(
     if (search) SearchDialog(lib, { search = false }) { id, typedIn ->
         setEvent(Event.Added(id))
         if (typedIn) open(id)
-    }
-    if (byHand) ByHandDialog(lib, { byHand = false }) { id ->
-        setEvent(Event.Added(id))
-        open(id)
     }
 }
 
@@ -367,7 +380,7 @@ private fun EventCard(
             if (event.copyAdded) {
                 Small(stringResource(R.string.copy_added, b.copies), Modifier.padding(vertical = 10.dp))
             } else {
-                Link(stringResource(R.string.add_copy), bold = false) {
+                SmallButton(stringResource(R.string.add_copy), Modifier.padding(top = 6.dp)) {
                     lib.addCopy(b.id); setEvent(Event.Place(b.id, copyAdded = true))
                 }
             }
@@ -439,16 +452,24 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
 
     val pull = rememberPull(lib)
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // The two orders and the books still to fix, side by side: the chosen one is filled.
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Choice(stringResource(R.string.system_dewey), system == CallNumber.System.DEWEY, Modifier.weight(1f)) {
                 lib.setSystem(CallNumber.System.DEWEY)
             }
             Choice(stringResource(R.string.system_sections), system == CallNumber.System.SECTIONS, Modifier.weight(1f)) {
                 lib.setSystem(CallNumber.System.SECTIONS)
             }
+            Choice(stringResource(R.string.needs_attention), attention, Modifier.weight(1f)) { attention = !attention }
         }
 
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        TextFieldMMD(
+            value = query, onValueChange = { query = it }, singleLine = true,
+            placeholder = { TextMMD(text = stringResource(R.string.filter), style = MaterialTheme.typography.labelSmall) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        )
+
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Small(
                 pulledWords(pull.pulled) ?: buildList {
                     add(stringResource(R.string.summary, shelf.size))
@@ -458,17 +479,7 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
                 }.joinToString("  ·  "),
                 modifier = Modifier.weight(1f), maxLines = 2,
             )
-            if (missing + offline > 0) Link(stringResource(R.string.retry)) { lib.retryAll() }
-        }
-
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextFieldMMD(
-                value = query, onValueChange = { query = it }, singleLine = true,
-                placeholder = { TextMMD(text = stringResource(R.string.filter), style = MaterialTheme.typography.labelSmall) },
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(8.dp))
-            Choice(stringResource(R.string.needs_attention), attention, Modifier.width(120.dp)) { attention = !attention }
+            if (missing + offline > 0) SmallButton(stringResource(R.string.retry)) { lib.retryAll() }
         }
 
         when {
@@ -482,22 +493,22 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
                 val p = shown[i]
                 if (system == CallNumber.System.SECTIONS) {
                     if (i == 0 || shown[i - 1].section != p.section) {
-                        if (i > 0) HorizontalDividerMMD(thickness = 2.dp)
+                        if (i > 0) HorizontalDividerMMD(thickness = 1.dp)
                         TextMMD(
                             text = stringResource(R.string.section_count, sectionName(p.section), sizes[p.section] ?: 0),
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                         )
-                        HorizontalDividerMMD(thickness = 2.dp)
+                        HorizontalDividerMMD(thickness = 1.dp)
                     }
                 } else if (!p.classified && (i == 0 || shown[i - 1].classified)) {
-                    HorizontalDividerMMD(thickness = 2.dp)
+                    HorizontalDividerMMD(thickness = 1.dp)
                     TextMMD(
                         text = stringResource(R.string.unclassified_dewey),
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     )
-                    HorizontalDividerMMD(thickness = 2.dp)
+                    HorizontalDividerMMD(thickness = 1.dp)
                 }
                 ShelfRow(p, system) { open(p.book.id) }
                 HorizontalDividerMMD(thickness = 1.dp)
@@ -534,11 +545,13 @@ private fun ShelfRow(p: Placed, system: CallNumber.System, onClick: () -> Unit) 
 @Composable
 private fun CameraButton(label: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
     Box(
-        modifier.padding(8.dp)
+        modifier.padding(4.dp)
+            .heightIn(min = 48.dp)
             .background(if (on) Color.White else Color.Black)
             .border(1.dp, Color.White)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
     ) {
         TextMMD(text = label, color = if (on) Color.Black else Color.White)
     }

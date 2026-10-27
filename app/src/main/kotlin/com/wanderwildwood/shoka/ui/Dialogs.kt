@@ -16,11 +16,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -199,7 +199,7 @@ fun SearchDialog(lib: Library, dismiss: () -> Unit, added: (Long, Boolean) -> Un
         // Offered as soon as there is a title, not only after a search comes back empty: offline,
         // or for a book no library has, a search is a step that can only fail.
         if (title.isNotBlank()) {
-            Link(stringResource(R.string.add_by_hand), bold = false) {
+            DialogButton(stringResource(R.string.add_by_hand)) {
                 added(lib.addByHand(title, author).id, true); dismiss()
             }
         }
@@ -259,139 +259,109 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
         source = if (ddc != book.ddc) "edited" else book.source,
     )
 
+    val context = LocalContext.current
+    val recording by produceState<String?>(null, book.title, book.author) {
+        value = withContext(Dispatchers.IO) { Listen.find(context, book) }
+    }
+    // Follows the numbers as they are typed, until set here against them.
+    val guess = Book(id = 0, lc = book.lc, ddc = ddc).fictionGuess
+    val isFiction = fiction ?: guess
+    // General fiction is chosen as FICTION, not "", so a later lookup leaves it be.
+    val codes = listOf(Shelf.FICTION) + Shelf.genres
+    val names = listOf(stringResource(R.string.section_fiction)) + stringArrayResource(R.array.genres)
+    val current = codes.indexOf(genre.takeIf { it in Shelf.genres } ?: Shelf.FICTION)
+
     EInkDialog(onDismiss = dismiss) {
-        Column(Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState())) {
-            Field(title, { title = it }, R.string.field_title)
-            Field(author, { author = it }, R.string.field_author)
-            if (!titled) Note(stringResource(R.string.edit_needs_title))
-            Field(year, { year = it }, R.string.field_year, KeyboardType.Number)
-            if (!yearOk) Note(stringResource(R.string.edit_bad_year))
-            Field(ddc, { ddc = it }, R.string.field_dewey, KeyboardType.Decimal)
-            if (!ddcOk) Note(stringResource(R.string.edit_bad_dewey))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextMMD(text = stringResource(R.string.field_copies))
-                Spacer(Modifier.weight(1f))
-                Link("−") { if (copies > 1) copies-- }
-                TextMMD(text = copies.toString(), fontWeight = FontWeight.Bold)
-                Link("+") { copies++ }
+        // The book's page turns like any list here when it is taller than the screen; Save and
+        // Cancel stay under it.
+        PagedColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+            item(key = "title") {
+                Field(title, { title = it }, R.string.field_title)
+                Field(author, { author = it }, R.string.field_author)
+                if (!titled) Note(stringResource(R.string.edit_needs_title))
             }
-            // Follows the numbers as they are typed, until set here against them.
-            val guess = Book(id = 0, lc = book.lc, ddc = ddc).fictionGuess
-            val isFiction = fiction ?: guess
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextMMD(text = stringResource(R.string.field_fiction))
-                Spacer(Modifier.weight(1f))
-                Link(stringResource(if (isFiction) R.string.yes else R.string.no)) {
-                    fiction = (!isFiction).takeIf { it != guess }
+            item(key = "numbers") {
+                Field(year, { year = it }, R.string.field_year, KeyboardType.Number)
+                if (!yearOk) Note(stringResource(R.string.edit_bad_year))
+                Field(ddc, { ddc = it }, R.string.field_dewey, KeyboardType.Decimal)
+                if (!ddcOk) Note(stringResource(R.string.edit_bad_dewey))
+            }
+            item(key = "copies") {
+                LabelRow(stringResource(R.string.field_copies)) {
+                    SmallButton("−") { if (copies > 1) copies-- }
+                    TextMMD(
+                        text = copies.toString(), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                        modifier = Modifier.widthIn(min = 40.dp),
+                    )
+                    SmallButton("+") { copies++ }
+                }
+            }
+            item(key = "fiction") {
+                LabelRow(stringResource(R.string.field_fiction)) {
+                    SmallButton(stringResource(if (isFiction) R.string.yes else R.string.no)) {
+                        fiction = (!isFiction).takeIf { it != guess }
+                    }
                 }
             }
             if (isFiction) {
-                // General fiction is chosen as FICTION, not "", so a later lookup leaves it be.
-                val codes = listOf(Shelf.FICTION) + Shelf.genres
-                val names = listOf(stringResource(R.string.section_fiction)) + stringArrayResource(R.array.genres)
-                val current = codes.indexOf(genre.takeIf { it in Shelf.genres } ?: Shelf.FICTION)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextMMD(text = stringResource(R.string.field_genre))
-                    Spacer(Modifier.weight(1f))
-                    Link(names[current]) { picking = !picking }
+                item(key = "genre") {
+                    LabelRow(stringResource(R.string.field_genre)) {
+                        SmallButton(names[current], filled = picking) { picking = !picking }
+                    }
                 }
                 if (picking) {
-                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
-                        codes.forEachIndexed { i, c ->
-                            if (i != current) Link(names[i], bold = false) { genre = c; picking = false }
+                    items(codes.size, key = { "genre-" + codes[it] }) { i ->
+                        if (i != current) {
+                            DialogButton(names[i]) { genre = codes[i]; picking = false }
                         }
                     }
                 }
             }
-            val ids = listOfNotNull(
-                book.isbn.takeIf { it.isNotEmpty() }?.let { "ISBN $it" },
-                book.lccn.takeIf { it.isNotEmpty() }?.let { "LCCN $it" },
-            ).joinToString("  ·  ")
-            // Listen sits beside the numbers, only when Audio Reading has this book to play, so
-            // the dialog keeps to one screen.
-            val context = LocalContext.current
-            val recording by produceState<String?>(null, book.title, book.author) {
-                value = withContext(Dispatchers.IO) { Listen.find(context, book) }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+            item(key = "ids") {
+                val ids = listOfNotNull(
+                    book.isbn.takeIf { it.isNotEmpty() }?.let { "ISBN $it" },
+                    book.lccn.takeIf { it.isNotEmpty() }?.let { "LCCN $it" },
+                ).joinToString("  ·  ")
+                Column(Modifier.padding(vertical = 6.dp)) {
                     if (ids.isNotEmpty()) Note(ids)
                     if (book.source.isNotEmpty()) Note(stringResource(R.string.source, book.source))
                 }
-                recording?.let { key ->
-                    Link(stringResource(R.string.listen)) { Listen.open(context, key); dismiss() }
-                }
             }
-            Spacer(Modifier.height(8.dp))
-            // Two to a row, so the whole dialog fits a 480x800 screen without scrolling.
-            Row {
-                Pair(stringResource(R.string.save), Modifier.weight(1f), filled = true) {
-                    if (yearOk && ddcOk && titled) { lib.update(edited()); dismiss() }
-                }
-                Pair(stringResource(R.string.cancel), Modifier.weight(1f), onClick = dismiss)
+            // Listen only when Audio Reading has this book to play.
+            recording?.let { key ->
+                item(key = "listen") { DialogButton(stringResource(R.string.listen)) { Listen.open(context, key); dismiss() } }
             }
-            Row {
-                if (book.isbn.isNotEmpty() || book.lccn.isNotEmpty()) {
-                    Pair(stringResource(R.string.look_again), Modifier.weight(1f)) {
-                        if (!(yearOk && ddcOk && titled)) return@Pair
+            if (book.isbn.isNotEmpty() || book.lccn.isNotEmpty()) {
+                item(key = "again") {
+                    DialogButton(stringResource(R.string.look_again)) {
+                        if (!(yearOk && ddcOk && titled)) return@DialogButton
                         lib.update(edited()); lib.retry(book.id); dismiss()
                     }
                 }
-                Pair(stringResource(if (armed) R.string.delete_armed else R.string.delete), Modifier.weight(1f), filled = armed) {
+            }
+            // Last, after everything that only adjusts.
+            item(key = "delete") {
+                DialogButton(stringResource(if (armed) R.string.delete_armed else R.string.delete), filled = armed) {
                     if (armed) { lib.delete(book.id); dismiss() } else armed = true
                 }
             }
         }
+        Spacer(Modifier.height(8.dp))
+        Row {
+            Pair(stringResource(R.string.save), Modifier.weight(1f), filled = true) {
+                if (yearOk && ddcOk && titled) { lib.update(edited()); dismiss() }
+            }
+            Pair(stringResource(R.string.cancel), Modifier.weight(1f), onClick = dismiss)
+        }
     }
 }
 
-/** The overflow: syncing, and the spreadsheet in and out. */
+/** A label on the left and its control on the right, a row high enough to press. */
 @Composable
-fun MenuDialog(lib: Library, dismiss: () -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var cloud by remember { mutableStateOf(false) }
-    var about by remember { mutableStateOf(false) }
-    // What the last save or read of a spreadsheet did, in a line that stays until the next.
-    var said by remember { mutableStateOf<String?>(null) }
-
-    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        if (uri != null) scope.launch {
-            val n = lib.export(uri)
-            said = if (n == null) context.getString(R.string.export_failed)
-            else context.resources.getQuantityString(R.plurals.exported, n, n)
-        }
-    }
-    val load = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
-            val r = lib.import(uri)
-            said = when {
-                r == null -> context.getString(R.string.import_failed)
-                r.added == 0 && r.read == 0 -> context.getString(R.string.import_none)
-                else -> context.resources.getQuantityString(R.plurals.imported, r.added, r.added) +
-                    if (r.read > r.added) " " + context.resources.getQuantityString(R.plurals.import_had, r.read - r.added, r.read - r.added) else ""
-            }
-        }
-    }
-
-    if (cloud) {
-        CloudDialog(lib) { cloud = false }
-        return
-    }
-    if (about) {
-        AboutDialog(onDismiss = { about = false })
-        return
-    }
-    EInkDialog(onDismiss = dismiss) {
-        Title(stringResource(R.string.menu))
-        DialogButton(stringResource(R.string.cloud_heading)) { cloud = true }
-        DialogButton(stringResource(R.string.export_csv)) { save.launch("shelf-order.csv") }
-        DialogButton(stringResource(R.string.import_csv)) {
-            load.launch(arrayOf("text/*", "application/csv", "application/octet-stream"))
-        }
-        said?.let { Note(it) }
-        DialogButton(stringResource(R.string.about)) { about = true }
-        DialogButton(stringResource(R.string.close), onClick = dismiss)
+private fun LabelRow(label: String, control: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
+        TextMMD(text = label, modifier = Modifier.weight(1f))
+        control()
     }
 }
 
@@ -424,7 +394,8 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
     val askCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { qr = it }
 
     EInkDialog(onDismiss = dismiss) {
-        Column(Modifier.heightIn(max = 540.dp).verticalScroll(rememberScrollState())) {
+        // One tall item: a screen that cannot hold it all reads it a screen at a time.
+        PagedColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) { item {
             Title(stringResource(R.string.cloud_heading))
             val a = account
             if (a != null) {
@@ -462,7 +433,7 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                     problem?.let { Note(it) }
                     Spacer(Modifier.height(6.dp))
                     DialogButton(stringResource(R.string.cancel)) { qr = false; problem = null }
-                    return@Column
+                    return@item
                 }
                 Field(server, { server = it; problem = null }, R.string.cloud_server, KeyboardType.Uri, KeyboardCapitalization.None)
                 if (typed) {
@@ -507,8 +478,9 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                     }
                 }
             }
-            DialogButton(stringResource(R.string.close), onClick = dismiss)
+            }
         }
+        DialogButton(stringResource(R.string.close), onClick = dismiss)
     }
 }
 
