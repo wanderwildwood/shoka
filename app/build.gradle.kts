@@ -16,8 +16,8 @@ android {
         // Supernote's tablets, which run Android 11 (API 30).
         minSdk = 30
         targetSdk = 31
-        versionCode = 16
-        versionName = "0.1.15"
+        versionCode = 17
+        versionName = "0.1.16"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -109,7 +109,7 @@ dependencies {
 
     implementation(libs.mmd)
 
-    // Only for MKCOL, which HttpURLConnection refuses to send.
+    // The WebDAV client (cloud/Dav.kt), the same as Gallery's.
     implementation(libs.okhttp)
 
     implementation(libs.camera.camera2)
@@ -119,6 +119,9 @@ dependencies {
     implementation(libs.tesseract4android)
 
     testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
+    // The platform's org.json is a stub off the phone.
+    testImplementation(libs.json)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
 }

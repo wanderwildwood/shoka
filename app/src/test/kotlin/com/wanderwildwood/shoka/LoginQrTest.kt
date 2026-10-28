@@ -1,5 +1,8 @@
 package com.wanderwildwood.shoka
 
+import com.wanderwildwood.shoka.cloud.Account
+import com.wanderwildwood.shoka.cloud.LoginFlow
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

@@ -48,7 +48,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.text_field.TextFieldMMD
-import com.wanderwildwood.shoka.Account
+import com.wanderwildwood.shoka.cloud.Account
 import com.wanderwildwood.shoka.Book
 import com.wanderwildwood.shoka.CallNumber
 import com.wanderwildwood.shoka.Found
@@ -56,7 +56,7 @@ import com.wanderwildwood.shoka.Isbn
 import com.wanderwildwood.shoka.Lccn
 import com.wanderwildwood.shoka.Library
 import com.wanderwildwood.shoka.Listen
-import com.wanderwildwood.shoka.LoginFlow
+import com.wanderwildwood.shoka.cloud.LoginFlow
 import com.wanderwildwood.shoka.Lookup
 import com.wanderwildwood.shoka.R
 import com.wanderwildwood.shoka.Shelf

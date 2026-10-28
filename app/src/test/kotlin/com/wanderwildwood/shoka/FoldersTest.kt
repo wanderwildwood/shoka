@@ -1,5 +1,7 @@
 package com.wanderwildwood.shoka
 
+import com.wanderwildwood.shoka.cloud.Folders
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import com.wanderwildwood.shoka.cloud.Account
+import com.wanderwildwood.shoka.cloud.Secrets
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -69,9 +71,7 @@ class Library(app: Application) : AndroidViewModel(app) {
 
     enum class SyncState { OFF, SYNCING, DONE, FAILED }
 
-    val account = MutableStateFlow(
-        prefs.getString("account", null)?.let { runCatching { JSONObject(it).toAccount() }.getOrNull() }
-    )
+    val account = MutableStateFlow(loadAccount())
     val folder = MutableStateFlow(prefs.getString("folder", "Books") ?: "Books")
     val syncState = MutableStateFlow(if (account.value == null) SyncState.OFF else SyncState.DONE)
     val lastSync = MutableStateFlow(prefs.getLong("lastSync", 0L))
@@ -359,8 +359,31 @@ class Library(app: Application) : AndroidViewModel(app) {
         if (Watch.moved(remoteTag, tag)) syncNow()?.join()
     }
 
+    /**
+     * The signed-in account. The app password is kept sealed with the keystore; an account saved
+     * by an earlier version, with the password in the clear, is read as it was and sealed at once,
+     * so nobody is asked to sign in again.
+     */
+    private fun loadAccount(): Account? {
+        val stored = prefs.getString("account", null) ?: return null
+        val json = runCatching { JSONObject(stored) }.getOrNull() ?: return null
+        val raw = json.optString("password")
+        val password = Secrets.open(raw)?.takeIf { it.isNotEmpty() } ?: return null
+        val account = Account(json.optString("server"), json.optString("user"), password)
+        if (account.server.isEmpty() || account.user.isEmpty()) return null
+        if (!Secrets.isSealed(raw)) saveAccount(account)
+        return account
+    }
+
+    private fun saveAccount(a: Account) {
+        // If the keystore will not seal, nothing is kept and the next start asks to sign in.
+        val sealed = Secrets.seal(a.password) ?: return
+        val json = JSONObject().put("server", a.server).put("user", a.user).put("password", sealed)
+        prefs.edit().putString("account", json.toString()).apply()
+    }
+
     fun signIn(a: Account) {
-        prefs.edit().putString("account", a.toJson().toString()).apply()
+        saveAccount(a)
         account.value = a
         syncNow()
     }
