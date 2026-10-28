@@ -2,9 +2,12 @@ package com.wanderwildwood.shoka.ui
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Size
+import android.view.Display
+import android.view.Surface
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -69,6 +72,9 @@ fun Scanner(
     val executor = remember { Executors.newSingleThreadExecutor() }
     val main = remember { Handler(Looper.getMainLooper()) }
 
+    // The two uses the camera is bound to, so a turn of the screen can reach them.
+    val bound = remember { AtomicReference<Pair<Preview, ImageAnalysis>?>(null) }
+
     val previewView = remember {
         PreviewView(context).apply {
             scaleType = PreviewView.ScaleType.FILL_CENTER
@@ -99,6 +105,7 @@ fun Scanner(
                     )
                 ).build()
             )
+            .setTargetRotation(displayRotation(context))
             .build()
         analysis.setAnalyzer(executor) { image ->
             if (textMode) {
@@ -143,10 +150,11 @@ fun Scanner(
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
             val provider = future.get()
-            val shown = Preview.Builder().build().also {
+            val shown = Preview.Builder().setTargetRotation(displayRotation(context)).build().also {
                 it.surfaceProvider = previewView.surfaceProvider
             }
             preview.set(shown)
+            bound.set(shown to analysis)
             provider.unbindAll()
             camera = runCatching {
                 provider.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, shown, analysis)
@@ -155,10 +163,32 @@ fun Scanner(
 
         onDispose {
             runCatching { future.get().unbindAll() }
+            bound.set(null)
             camera = null
             // After any read still running on the same thread.
             executor.execute { numbers.close() }
         }
+    }
+
+    // The screen turns with the phone. A quarter turn rebuilds this view, but a half turn, from
+    // one sideways to the other, changes nothing else on screen, so the camera is told of every
+    // turn here. The preview is turned by the display's rotation and nothing more: the camera
+    // adds its own mounting, and adding it twice is what left previews a quarter turn out.
+    DisposableEffect(Unit) {
+        val displays = context.getSystemService(DisplayManager::class.java)
+        val listener = object : DisplayManager.DisplayListener {
+            override fun onDisplayAdded(displayId: Int) {}
+            override fun onDisplayRemoved(displayId: Int) {}
+            override fun onDisplayChanged(displayId: Int) {
+                val rotation = displayRotation(context)
+                bound.get()?.let { (shown, analysis) ->
+                    shown.targetRotation = rotation
+                    analysis.targetRotation = rotation
+                }
+            }
+        }
+        displays.registerDisplayListener(listener, main)
+        onDispose { displays.unregisterDisplayListener(listener) }
     }
 
     LaunchedEffect(camera, torch) {
@@ -169,6 +199,11 @@ fun Scanner(
 }
 
 private const val REPEAT_MS = 2500L
+
+/** Which way the screen is turned now, as a [android.view.Surface] rotation. */
+private fun displayRotation(context: Context): Int =
+    context.getSystemService(DisplayManager::class.java)
+        .getDisplay(Display.DEFAULT_DISPLAY)?.rotation ?: Surface.ROTATION_0
 
 /** Whether there is a camera at all: Supernote's tablets have none. */
 fun hasCamera(context: Context): Boolean =

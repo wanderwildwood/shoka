@@ -85,6 +85,7 @@
     <string name="attention_none">Nothing to fix: every book is found and has its number.</string>
 
     <string name="settings">Settings</string>
+    <string name="turn_with_phone">Turn sideways with the phone</string>
     <string name="back">Back</string>
     <plurals name="book_count">
         <item quantity="one">The shelf order, %1$d book</item>

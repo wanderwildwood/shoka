@@ -75,6 +75,14 @@ class Library(app: Application) : AndroidViewModel(app) {
     val folder = MutableStateFlow(prefs.getString("folder", "Books") ?: "Books")
     val syncState = MutableStateFlow(if (account.value == null) SyncState.OFF else SyncState.DONE)
     val lastSync = MutableStateFlow(prefs.getLong("lastSync", 0L))
+
+    /** Whether the screen turns sideways with the phone; on unless switched off in Settings. */
+    val turnWithPhone = MutableStateFlow(prefs.getBoolean("turn_with_phone", true))
+
+    fun setTurnWithPhone(on: Boolean) {
+        turnWithPhone.value = on
+        prefs.edit().putBoolean("turn_with_phone", on).apply()
+    }
     private var pendingSync: Job? = null
 
     /**

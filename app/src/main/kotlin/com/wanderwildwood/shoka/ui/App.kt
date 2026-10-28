@@ -2,6 +2,7 @@ package com.wanderwildwood.shoka.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -11,8 +12,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -81,11 +84,11 @@ sealed interface Event {
 @Composable
 fun ShelfApp(lib: Library) {
     var tab by rememberSaveable { mutableStateOf(0) }
-    var editing by remember { mutableStateOf<Long?>(null) }
+    var editing by rememberSaveable { mutableStateOf<Long?>(null) }
     var event by remember { mutableStateOf<Event?>(null) }
     var settings by rememberSaveable { mutableStateOf(false) }
-    var about by remember { mutableStateOf(false) }
-    var byHand by remember { mutableStateOf(false) }
+    var about by rememberSaveable { mutableStateOf(false) }
+    var byHand by rememberSaveable { mutableStateOf(false) }
     val books by lib.books.collectAsStateWithLifecycle()
 
     if (settings) {
@@ -198,8 +201,8 @@ private fun ScanScreen(
     var torch by rememberSaveable { mutableStateOf(false) }
     // Reading the ISBN printed as text, for a book with no barcode or a damaged one.
     var readText by rememberSaveable { mutableStateOf(false) }
-    var manual by remember { mutableStateOf(false) }
-    var search by remember { mutableStateOf(false) }
+    var manual by rememberSaveable { mutableStateOf(false) }
+    var search by rememberSaveable { mutableStateOf(false) }
     val system by lib.system.collectAsStateWithLifecycle()
 
     val feedback = remember { Feedback(context) }
@@ -213,11 +216,15 @@ private fun ScanScreen(
     }
 
     // The Kompakt's screen is 610dp tall, the Pixel's 850: the camera takes what is spare.
-    val tall = LocalConfiguration.current.screenHeightDp > 700
+    val configuration = LocalConfiguration.current
+    val tall = configuration.screenHeightDp > 700
+    // Turned sideways, the camera has the left half and what was scanned the right.
+    val sideways = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     // A tablet with no camera (Supernote's) starts with the card and the ways to add by hand.
     val camera = remember { hasCamera(context) }
-    Column(Modifier.fillMaxSize()) {
-        if (camera) Box(Modifier.fillMaxWidth().height(if (tall) 230.dp else 150.dp).clipToBounds().background(Color.Black)) {
+
+    val cameraView: @Composable (Modifier) -> Unit = { modifier ->
+        Box(modifier.clipToBounds().background(Color.Black)) {
             if (granted) {
                 val boxHeightPx = with(LocalDensity.current) { TextBox.HEIGHT.roundToPx() }
                 Scanner(
@@ -266,13 +273,17 @@ private fun ScanScreen(
                 }
             }
         }
+    }
 
-        Box(Modifier.fillMaxWidth().height(if (tall) 210.dp else 172.dp).padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
+    val eventCard: @Composable (Modifier) -> Unit = { modifier ->
+        Box(modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
             EventCard(lib, books, event, setEvent, open)
         }
+    }
 
-        // Two ways in when the barcode won't do: its number typed, or a title searched for. The
-        // third, the book written in by hand, is the + in the bar.
+    // Two ways in when the barcode won't do: its number typed, or a title searched for. The
+    // third, the book written in by hand, is the + in the bar.
+    val ways: @Composable () -> Unit = {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -280,18 +291,19 @@ private fun ScanScreen(
             SmallButton(stringResource(R.string.type_number), Modifier.weight(1f)) { manual = true }
             SmallButton(stringResource(R.string.search_title), Modifier.weight(1f)) { search = true }
         }
+    }
 
-        HorizontalDividerMMD(thickness = 1.dp)
-        val pull = rememberPull(lib)
+    val pull = rememberPull(lib)
+    val recent = remember(books) { books.sortedByDescending { it.added }.take(60) }
+    // The newest scan goes on top; without this the list keeps hold of the old top book.
+    val recentList = rememberLazyListState()
+    LaunchedEffect(recent.firstOrNull()?.id) { recentList.scrollToItem(0) }
+    val recentBooks: @Composable ColumnScope.() -> Unit = {
         pulledWords(pull.pulled)?.let { line ->
             Small(line, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp))
             HorizontalDividerMMD(thickness = 1.dp)
         }
-        val recent = remember(books) { books.sortedByDescending { it.added }.take(60) }
         if (recent.isEmpty()) Small(stringResource(R.string.recent_empty), Modifier.padding(16.dp), maxLines = 3)
-        // The newest scan goes on top; without this the list keeps hold of the old top book.
-        val recentList = rememberLazyListState()
-        LaunchedEffect(recent.firstOrNull()?.id) { recentList.scrollToItem(0) }
         PagedColumn(Modifier.weight(1f).fillMaxWidth(), state = recentList, onPullAtTop = if (pull.available) pull::pull else null) {
             items(recent.size, key = { recent[it].id }) { i ->
                 val b = recent[i]
@@ -302,6 +314,25 @@ private fun ScanScreen(
                 HorizontalDividerMMD(thickness = 1.dp)
             }
         }
+    }
+
+    if (sideways && camera) Row(Modifier.fillMaxSize()) {
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            cameraView(Modifier.fillMaxWidth().weight(1f))
+            ways()
+        }
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            // Room for where the book goes and the books either side of it, then the list.
+            eventCard(Modifier.fillMaxWidth().weight(2.2f))
+            HorizontalDividerMMD(thickness = 1.dp)
+            recentBooks()
+        }
+    } else Column(Modifier.fillMaxSize()) {
+        if (camera) cameraView(Modifier.fillMaxWidth().height(if (tall) 230.dp else 150.dp))
+        eventCard(Modifier.fillMaxWidth().height(if (tall) 210.dp else 172.dp))
+        ways()
+        HorizontalDividerMMD(thickness = 1.dp)
+        recentBooks()
     }
 
     if (manual) ManualDialog(lib, { manual = false }) { isbn, id ->
@@ -451,24 +482,28 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
     }
 
     val pull = rememberPull(lib)
-    Column(Modifier.fillMaxSize()) {
-        // The two orders and the books still to fix, side by side: the chosen one is filled.
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Choice(stringResource(R.string.system_dewey), system == CallNumber.System.DEWEY, Modifier.weight(1f)) {
-                lib.setSystem(CallNumber.System.DEWEY)
-            }
-            Choice(stringResource(R.string.system_sections), system == CallNumber.System.SECTIONS, Modifier.weight(1f)) {
-                lib.setSystem(CallNumber.System.SECTIONS)
-            }
-            Choice(stringResource(R.string.needs_attention), attention, Modifier.weight(1f)) { attention = !attention }
-        }
+    // Turned sideways, the orders and the count stand on the left and the books on the right,
+    // so the list keeps the height for more than one of them.
+    val sideways = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    // The two orders and the books still to fix; the chosen one is filled.
+    val choices: @Composable (Modifier) -> Unit = { each ->
+        Choice(stringResource(R.string.system_dewey), system == CallNumber.System.DEWEY, each) {
+            lib.setSystem(CallNumber.System.DEWEY)
+        }
+        Choice(stringResource(R.string.system_sections), system == CallNumber.System.SECTIONS, each) {
+            lib.setSystem(CallNumber.System.SECTIONS)
+        }
+        Choice(stringResource(R.string.needs_attention), attention, each) { attention = !attention }
+    }
+    val field: @Composable () -> Unit = {
         TextFieldMMD(
             value = query, onValueChange = { query = it }, singleLine = true,
             placeholder = { TextMMD(text = stringResource(R.string.filter), style = MaterialTheme.typography.labelSmall) },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         )
-
+    }
+    val summaryLine: @Composable () -> Unit = {
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Small(
                 pulledWords(pull.pulled) ?: buildList {
@@ -481,7 +516,8 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
             )
             if (missing + offline > 0) SmallButton(stringResource(R.string.retry)) { lib.retryAll() }
         }
-
+    }
+    val books: @Composable ColumnScope.() -> Unit = {
         when {
             shelf.isEmpty() -> TextMMD(text = stringResource(R.string.empty_shelf), modifier = Modifier.padding(16.dp))
             shown.isEmpty() && query.isNotBlank() -> TextMMD(text = stringResource(R.string.filter_none, query.trim()), modifier = Modifier.padding(16.dp))
@@ -514,6 +550,26 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
                 HorizontalDividerMMD(thickness = 1.dp)
             }
         }
+    }
+
+    if (sideways) Row(Modifier.fillMaxSize()) {
+        Column(Modifier.weight(0.38f).fillMaxHeight()) {
+            summaryLine()
+            Spacer(Modifier.height(4.dp))
+            choices(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 3.dp))
+        }
+        Column(Modifier.weight(0.62f).fillMaxHeight().padding(top = 8.dp)) {
+            field()
+            books()
+        }
+    } else Column(Modifier.fillMaxSize()) {
+        // The two orders and the books still to fix, side by side: the chosen one is filled.
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            choices(Modifier.weight(1f))
+        }
+        field()
+        summaryLine()
+        books()
     }
 }
 
