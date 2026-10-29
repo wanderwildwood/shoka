@@ -10,6 +10,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -59,7 +63,6 @@ import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
 import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.text_field.TextFieldMMD
-import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.shoka.Book
 import com.wanderwildwood.shoka.CallNumber
 import com.wanderwildwood.shoka.Isbn
@@ -100,15 +103,45 @@ fun ShelfApp(lib: Library) {
     ) {
         // Scan and Shelf order are the app's two views; adding by hand, the settings and About
         // are the bar's.
-        TopAppBarMMD(
-            title = { TextMMD(text = stringResource(R.string.app_name)) },
-            actions = {
-                BarButton(Icons.Add, stringResource(R.string.by_hand)) { byHand = true }
-                BarButton(Icons.Settings, stringResource(R.string.settings)) { settings = true }
-                BarButton(Icons.Info, stringResource(R.string.about)) { about = true }
-            },
-        )
-        StoneTabs(listOf(stringResource(R.string.tab_scan), stringResource(R.string.tab_shelf)), tab, { tab = it })
+        val tabs = listOf(stringResource(R.string.tab_scan), stringResource(R.string.tab_shelf))
+        val buttons: @Composable () -> Unit = {
+            BarButton(Icons.Add, stringResource(R.string.by_hand)) { byHand = true }
+            BarButton(Icons.Settings, stringResource(R.string.settings)) { settings = true }
+            BarButton(Icons.Info, stringResource(R.string.about)) { about = true }
+        }
+        // One 48dp line holds the tabs and the buttons, upright and sideways: the screen is
+        // short either way, and two bars and a tab row took a fifth of it.
+        val sideways = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+        Row(
+            Modifier.fillMaxWidth().height(48.dp).padding(start = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // The name is the launcher's to show; sideways there is room for it as well.
+            if (sideways) {
+                TextMMD(text = stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, maxLines = 1)
+                Spacer(Modifier.weight(1f))
+            }
+            Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                tabs.forEachIndexed { i, label ->
+                    val chosen = i == tab
+                    Box(
+                        Modifier.heightIn(min = 40.dp)
+                            .then(if (chosen) Modifier.background(Color.Black, RoundedCornerShape(4.dp)) else Modifier)
+                            .selectable(selected = chosen, role = Role.Tab, onClick = { tab = i })
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        TextMMD(
+                            text = label, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            color = if (chosen) Color.White else Color.Black, maxLines = 1,
+                        )
+                    }
+                }
+            }
+            if (!sideways) Spacer(Modifier.weight(1f)) else Spacer(Modifier.width(8.dp))
+            buttons()
+        }
+        HorizontalDividerMMD(thickness = 1.dp)
         when (tab) {
             0 -> ScanScreen(lib, books, event, { event = it }, { editing = it })
             else -> ShelfScreen(lib) { editing = it }
@@ -158,9 +191,9 @@ fun Choice(label: String, selected: Boolean, modifier: Modifier, onClick: () -> 
 
 /** A press that takes no more room than its words: bordered, 48dp tall, as every button here. */
 @Composable
-fun SmallButton(label: String, modifier: Modifier = Modifier, filled: Boolean = false, onClick: () -> Unit) {
+fun SmallButton(label: String, modifier: Modifier = Modifier, filled: Boolean = false, side: androidx.compose.ui.unit.Dp = 14.dp, onClick: () -> Unit) {
     val m = modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)
-    val pad = androidx.compose.foundation.layout.PaddingValues(horizontal = 14.dp)
+    val pad = androidx.compose.foundation.layout.PaddingValues(horizontal = side)
     if (filled) {
         ButtonMMD(onClick = onClick, modifier = m, contentPadding = pad) { TextMMD(text = label, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
     } else {
@@ -217,7 +250,7 @@ private fun ScanScreen(
 
     // The Kompakt's screen is 610dp tall, the Pixel's 850: the camera takes what is spare.
     val configuration = LocalConfiguration.current
-    val tall = configuration.screenHeightDp > 700
+    val cameraHeight = ScanLayout.cameraHeightDp(configuration.screenHeightDp).dp
     // Turned sideways, the camera has the left half and what was scanned the right.
     val sideways = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     // A tablet with no camera (Supernote's) starts with the card and the ways to add by hand.
@@ -241,7 +274,7 @@ private fun ScanScreen(
                     TextMMD(
                         text = stringResource(R.string.read_number_hint), color = Color.White,
                         style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 6.dp),
+                        modifier = Modifier.align(Alignment.TopCenter).padding(top = 2.dp),
                     )
                     Box(
                         Modifier.align(Alignment.Center).fillMaxWidth(TextBox.WIDTH).height(TextBox.HEIGHT)
@@ -250,12 +283,6 @@ private fun ScanScreen(
                 } else {
                     // A guide line, so the barcode goes where the reader looks hardest.
                     Box(Modifier.align(Alignment.Center).fillMaxWidth(0.7f).height(1.dp).background(Color.White))
-                }
-                CameraButton(stringResource(R.string.read_number), readText, Modifier.align(Alignment.BottomStart)) {
-                    readText = !readText
-                }
-                CameraButton(stringResource(R.string.light), torch, Modifier.align(Alignment.BottomEnd)) {
-                    torch = !torch
                 }
             } else if (!granted) {
                 Column(
@@ -276,20 +303,26 @@ private fun ScanScreen(
     }
 
     val eventCard: @Composable (Modifier) -> Unit = { modifier ->
-        Box(modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
+        Box(modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp)) {
             EventCard(lib, books, event, setEvent, open)
         }
     }
 
     // Two ways in when the barcode won't do: its number typed, or a title searched for. The
     // third, the book written in by hand, is the + in the bar.
+    // The camera's own two, reading the printed number and the light, stand with them under the
+    // picture, which keeps nothing on it but the guide line. The two that are switched on are
+    // filled.
     val ways: @Composable () -> Unit = {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SmallButton(stringResource(R.string.type_number), Modifier.weight(1f)) { manual = true }
-            SmallButton(stringResource(R.string.search_title), Modifier.weight(1f)) { search = true }
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (camera && granted) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SmallButton(stringResource(R.string.read_number), Modifier.weight(1f), filled = readText, side = 6.dp) { readText = !readText }
+                SmallButton(stringResource(R.string.light), Modifier.weight(1f), filled = torch, side = 6.dp) { torch = !torch }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SmallButton(stringResource(R.string.type_number), Modifier.weight(1f)) { manual = true }
+                SmallButton(stringResource(R.string.search_title), Modifier.weight(1f)) { search = true }
+            }
         }
     }
 
@@ -319,17 +352,16 @@ private fun ScanScreen(
     if (sideways && camera) Row(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).fillMaxHeight()) {
             cameraView(Modifier.fillMaxWidth().weight(1f))
+            // Where the book goes stays with the camera, so the whole right side is the list.
+            eventCard(Modifier.fillMaxWidth())
             ways()
         }
         Column(Modifier.weight(1f).fillMaxHeight()) {
-            // Room for where the book goes and the books either side of it, then the list.
-            eventCard(Modifier.fillMaxWidth().weight(2.2f))
-            HorizontalDividerMMD(thickness = 1.dp)
             recentBooks()
         }
     } else Column(Modifier.fillMaxSize()) {
-        if (camera) cameraView(Modifier.fillMaxWidth().height(if (tall) 230.dp else 150.dp))
-        eventCard(Modifier.fillMaxWidth().height(if (tall) 210.dp else 172.dp))
+        if (camera) cameraView(Modifier.fillMaxWidth().height(cameraHeight))
+        eventCard(Modifier.fillMaxWidth())
         ways()
         HorizontalDividerMMD(thickness = 1.dp)
         recentBooks()
@@ -380,7 +412,9 @@ private fun EventCard(
     val title = MaterialTheme.typography.titleMedium
 
     when (event) {
-        null -> Small(stringResource(R.string.hint_scan), maxLines = 6)
+        // The whole explanation until a first book is in; after that a line is enough.
+        null -> if (ScanLayout.fullHint(books.size)) Small(stringResource(R.string.hint_scan), maxLines = 6)
+        else Small(stringResource(R.string.hint_scan_short))
 
         Event.NotIsbn -> TextMMD(text = stringResource(R.string.not_isbn), style = MaterialTheme.typography.bodySmall)
 
@@ -391,7 +425,7 @@ private fun EventCard(
                 PlaceCard(lib, b.id, open) { Small(stringResource(R.string.just_added)) }
                 return
             }
-            Column(Modifier.fillMaxSize().clickable { open(b.id) }) {
+            Column(Modifier.fillMaxWidth().clickable { open(b.id) }) {
                 TextMMD(
                     text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, style = title,
                     fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -409,9 +443,9 @@ private fun EventCard(
         is Event.Place -> PlaceCard(lib, event.id, open) {
             val b = books.firstOrNull { it.id == event.id } ?: return@PlaceCard
             if (event.copyAdded) {
-                Small(stringResource(R.string.copy_added, b.copies), Modifier.padding(vertical = 10.dp))
+                Small(stringResource(R.string.copy_added, b.copies))
             } else {
-                SmallButton(stringResource(R.string.add_copy), Modifier.padding(top = 6.dp)) {
+                SmallButton(stringResource(R.string.add_copy)) {
                     lib.addCopy(b.id); setEvent(Event.Place(b.id, copyAdded = true))
                 }
             }
@@ -427,13 +461,17 @@ private fun PlaceCard(lib: Library, id: Long, open: (Long) -> Unit, foot: @Compo
     val i = shelf.indexOfFirst { it.book.id == id }
     if (i < 0) return
     val p = shelf[i]
-    Column(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().clickable { open(p.book.id) }) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                TextMMD(text = stringResource(R.string.position, p.position), fontSize = 40.sp, fontWeight = FontWeight.Bold)
+    Column(Modifier.fillMaxWidth()) {
+        // The number, and on the same line what can be done about it, so the card is short.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f).clickable { open(p.book.id) }, verticalAlignment = Alignment.Bottom) {
+                TextMMD(text = stringResource(R.string.position, p.position), fontSize = 32.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(8.dp))
-                TextMMD(text = stringResource(R.string.of_total, shelf.size), modifier = Modifier.padding(bottom = 6.dp))
+                TextMMD(text = stringResource(R.string.of_total, shelf.size), modifier = Modifier.padding(bottom = 4.dp))
             }
+            foot()
+        }
+        Column(Modifier.fillMaxWidth().clickable { open(p.book.id) }) {
             if (system == CallNumber.System.SECTIONS) {
                 // By author within a section, so the neighbours are named by author too.
                 val section = sectionName(p.section)
@@ -451,7 +489,6 @@ private fun PlaceCard(lib: Library, id: Long, open: (Long) -> Unit, foot: @Compo
                 Small(shelf.getOrNull(i + 1)?.let { stringResource(R.string.before, it.book.title) } ?: stringResource(R.string.last_on_shelf))
             }
         }
-        foot()
     }
 }
 
@@ -582,33 +619,33 @@ private fun ShelfRow(p: Placed, system: CallNumber.System, onClick: () -> Unit) 
             modifier = Modifier.width(48.dp).padding(end = 10.dp),
         )
         Column(Modifier.weight(1f)) {
-            // Sections shelves by author, so a call number here would only mislead.
+            // Two lines, as the Scan list has them, so the list shows more of the shelf: the
+            // title, then the number and the rest. Sections shelves by author, so a call number
+            // there would only mislead.
             val call = if (system == CallNumber.System.SECTIONS) "" else b.ddc
-            if (call.isNotEmpty()) TextMMD(text = call, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-            TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val sub = buildList {
                 if (b.author.isNotEmpty()) add(b.author)
                 if (b.year.isNotEmpty()) add(b.year)
                 if (b.copies > 1) add("×${b.copies}")
                 if (b.status != Status.FOUND) add(statusLine(b, system))
             }.joinToString("  ·  ")
-            if (sub.isNotEmpty()) Small(sub)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (call.isNotEmpty()) {
+                    Small(call, mono = true)
+                    if (sub.isNotEmpty()) Small("  ·  ")
+                }
+                if (sub.isNotEmpty()) Small(sub, Modifier.weight(1f))
+            }
         }
     }
 }
 
-/** A button over the camera picture: white on black, and black on white while it is on. */
-@Composable
-private fun CameraButton(label: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    Box(
-        modifier.padding(4.dp)
-            .heightIn(min = 48.dp)
-            .background(if (on) Color.White else Color.Black)
-            .border(1.dp, Color.White)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        TextMMD(text = label, color = if (on) Color.Black else Color.White)
-    }
+/** The Scan page's measures, apart from Compose so they can be tested. */
+object ScanLayout {
+    /** The Kompakt's screen is 610dp tall, the Pixel's 850: the camera takes what is spare. */
+    fun cameraHeightDp(screenHeightDp: Int): Int = if (screenHeightDp > 700) 180 else 104
+
+    /** The long explanation is for a shelf with nothing on it; after that one line does. */
+    fun fullHint(bookCount: Int): Boolean = bookCount == 0
 }

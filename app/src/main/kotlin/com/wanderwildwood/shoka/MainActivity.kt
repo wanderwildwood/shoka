@@ -4,7 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import android.content.res.Configuration
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.platform.LocalCursorBlinkEnabled
 import androidx.lifecycle.lifecycleScope
 import com.mudita.mmd.ThemeMMD
@@ -29,6 +34,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             // A blinking cursor redraws the panel twice a second for as long as a field has focus.
             CompositionLocalProvider(LocalCursorBlinkEnabled provides false) {
+                // On its side the status bar goes, for the height; a swipe from the edge shows it
+                // for a moment. Upright it is back. Set again on every turn and fresh start.
+                val sideways = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                DisposableEffect(sideways) {
+                    val controller = WindowInsetsControllerCompat(window, window.decorView)
+                    controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    if (sideways) controller.hide(WindowInsetsCompat.Type.statusBars())
+                    else controller.show(WindowInsetsCompat.Type.statusBars())
+                    onDispose { }
+                }
                 ThemeMMD(colorScheme = monochrome) { ShelfApp(library) }
             }
         }

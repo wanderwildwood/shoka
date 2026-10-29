@@ -80,6 +80,7 @@
     <string name="needs_attention">To fix</string>
     <string name="unclassified_dewey">No Dewey number — by author</string>
     <string name="empty_shelf">Nothing catalogued yet. Scan a book, or add one on the Scan page.</string>
+    <string name="hint_scan_short">Point the camera at a barcode.</string>
     <string name="recent_empty">Books you scan or add show here, newest first.</string>
     <string name="filter_none">No book matches “%1$s”.</string>
     <string name="attention_none">Nothing to fix: every book is found and has its number.</string>
