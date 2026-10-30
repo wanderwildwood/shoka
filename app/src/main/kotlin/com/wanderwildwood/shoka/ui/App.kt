@@ -286,11 +286,19 @@ private fun ScanScreen(
                 }
             } else if (!granted) {
                 Column(
-                    Modifier.align(Alignment.Center).padding(16.dp),
+                    // The camera box is only 104 dp tall on the Kompakt: small words, no vertical
+                    // padding, so the 48 dp button under them is not cut off.
+                    Modifier.align(Alignment.Center).padding(horizontal = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    TextMMD(text = stringResource(R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center)
-                    HouseButton(stringResource(R.string.camera_allow), { ask.launch(Manifest.permission.CAMERA) }, Modifier.padding(top = 8.dp))
+                    TextMMD(
+                        text = stringResource(R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    // The button draws black on nothing, so on the black camera box it sits on white.
+                    Box(Modifier.padding(top = 4.dp).background(Color.White, RoundedCornerShape(8.dp))) {
+                        HouseButton(stringResource(R.string.camera_allow), { ask.launch(Manifest.permission.CAMERA) })
+                    }
                 }
             }
         }
