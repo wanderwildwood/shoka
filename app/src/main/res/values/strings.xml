@@ -199,7 +199,7 @@
     <string name="about_terms_heading">Terms</string>
     <string name="about_terms">This app is free software under the GNU General Public License v3. It comes with no warranty: use it at your own risk. Call numbers come from the catalogues and can be wrong.</string>
     <string name="about_open_source_heading">Open source</string>
-    <string name="about_bundled">Built with Mudita MMD, AndroidX and Jetpack Compose with CameraX, and Kotlin with kotlinx.coroutines, all Apache 2.0. Barcodes are read with zxing-cpp, and printed numbers with Tesseract and its English model through Tesseract4Android, all Apache 2.0. The Lato typeface, SIL Open Font Licence 1.1. Icons from Material Symbols, Apache 2.0.</string>
+    <string name="about_bundled">Built with Mudita MMD, AndroidX, Jetpack Compose, CameraX, OkHttp and Kotlin; barcodes are read with zxing-cpp and printed numbers with Tesseract (with Leptonica, libjpeg and libpng) and its English model; the Lato typeface and Material Symbols icons. The full list, with each licence and its text, is under Licences.</string>
     <string name="about_feed_the_llamas">Feed the llamas</string>
     <string name="about_no_browser">There is no browser on this phone to open that with.</string>
     <string name="about_close">Close</string>
@@ -209,4 +209,24 @@
     <string name="folio_page">Page %1$d of %2$d</string>
     <string name="folio_go">Go</string>
     <string name="folio_cancel">Cancel</string>
+    <string name="about_licences">Licences</string>
+    <string name="licences_title">Licences</string>
+    <string name="licences_source_head">Source code</string>
+    <string name="licences_licence_head">Licence</string>
+    <string name="licences_licence">Shelf is free software under the GNU General Public License, version 3 only (GPL-3.0-only), copyright wander wildwood, for what is written here. The work it is built on keeps its own licence and its authors keep their copyright, as listed under Built with. The full text of each licence is at the end of this page.</string>
+    <string name="licences_built_head">Built with</string>
+    <string name="licences_back">Back</string>
+    <string name="about_no_browser_address">No browser is installed. The address is %1$s.</string>
+    <string name="licences_gpl">GNU General Public License, version 3</string>
+    <string name="licences_apache">Apache License, version 2.0</string>
+    <string name="licences_mit">MIT License</string>
+    <string name="licences_ofl">SIL Open Font License, version 1.1</string>
+    <string name="licences_leptonica">Leptonica licence</string>
+    <string name="licences_ijg">Independent JPEG Group licence</string>
+    <string name="licences_libpng">PNG Reference Library License, version 2</string>
+    <string name="open_app_settings">Open app settings</string>
+    <string name="camera_refused">The camera is switched off for this app. Allow it in the app\'s settings, then come back.</string>
+    <string name="cloud_plain_http">That address starts with http://, which this app does not use because it is not encrypted. Use the https:// address of the server.</string>
+    <string name="cloud_checking">Checking the sign-in with the server\u2026</string>
+    <string name="cloud_refused">The server did not accept that user name and app password.</string>
 </resources>

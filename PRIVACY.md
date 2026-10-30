@@ -22,4 +22,4 @@ there.
 **Audiobooks**, when it is installed: a book's page asks it, on the phone, whether it has
 that book (by title and author), to show **Listen**. Nothing is sent anywhere.
 
-The About dialog's last line opens a web address in your browser, and only when you press it.
+About opens web addresses in your browser (the source, the site and the donation page) only when you press them.

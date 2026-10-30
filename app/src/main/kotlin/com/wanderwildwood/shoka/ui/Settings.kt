@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -109,6 +111,7 @@ fun SettingsScreen(lib: Library, onBack: () -> Unit, onAbout: () -> Unit) {
                         text = stringResource(R.string.turn_with_phone), style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f),
                     )
+                    Spacer(Modifier.width(16.dp))
                     // The whole row takes the press.
                     SwitchMMD(checked = turn, onCheckedChange = null)
                 }

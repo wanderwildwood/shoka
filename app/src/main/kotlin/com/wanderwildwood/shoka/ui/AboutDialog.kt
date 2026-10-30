@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,8 +36,15 @@ import com.wanderwildwood.shoka.R
  */
 @Composable
 fun AboutDialog(onDismiss: () -> Unit) {
-    EInkDialog(onDismiss = onDismiss) {
-        PagedColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+    val room = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp * 0.62f
+    var licences by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    // Back in the Licences page returns to the About rather than leaving both.
+    EInkDialog(onDismiss = { if (licences) licences = false else onDismiss() }) {
+        if (licences) {
+            LicencesPage(onBack = { licences = false }, room = room)
+            return@EInkDialog
+        }
+        PagedColumn(Modifier.fillMaxWidth().height(room)) {
             item {
                 TextMMD(
                     text = stringResource(R.string.about_title, BuildConfig.VERSION_NAME),
@@ -51,7 +61,25 @@ fun AboutDialog(onDismiss: () -> Unit) {
             item { Para(stringResource(R.string.about_terms), top = 4.dp) }
             item { Heading(stringResource(R.string.about_open_source_heading)) }
             item { Para(stringResource(R.string.about_bundled), top = 4.dp) }
-            item { Para("github.com/wanderwildwood/shoka") }
+            item {
+                TextMMD(
+                    text = stringResource(R.string.about_licences),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { licences = true }.heightIn(min = 48.dp).wrapContentHeight(Alignment.CenterVertically),
+                )
+            }
+            item {
+                val context = LocalContext.current
+                TextMMD(
+                    text = "github.com/wanderwildwood/shoka",
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier
+                        .clickable { openLink(context, SOURCE_URL, context.getString(R.string.about_no_browser_address, SOURCE_URL.removePrefix("https://"))) }
+                        .heightIn(min = 48.dp)
+                        .wrapContentHeight(Alignment.CenterVertically),
+                )
+            }
             item { Spacer(Modifier.height(10.dp)); Llama() }
         }
         Spacer(Modifier.height(14.dp))
@@ -90,13 +118,7 @@ private fun Llama() {
         modifier = Modifier
             .heightIn(min = 48.dp)
             .clickable {
-                runCatching {
-                    context.startActivity(
-                        Intent(Intent.ACTION_VIEW, Uri.parse("https://square.link/u/AGu8oT10")),
-                    )
-                }.onFailure {
-                    Toast.makeText(context, context.getString(R.string.about_no_browser), Toast.LENGTH_SHORT).show()
-                }
+                openLink(context, "https://square.link/u/AGu8oT10", context.getString(R.string.about_no_browser_address, "square.link/u/AGu8oT10"))
             },
     ) {
         Image(

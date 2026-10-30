@@ -14,13 +14,24 @@ object Csv {
             appendLine(
                 listOf(
                     p.position.toString(), if (system == CallNumber.System.SECTIONS) sectionName(p.section) else "",
-                    b.lc, b.ddc, b.title, b.author, b.year, b.isbn, b.lccn, b.copies.toString(), b.source,
+                    b.lc, b.ddc, safe(b.title), safe(b.author), b.year, b.isbn, b.lccn, b.copies.toString(), b.source,
                     when (b.fiction) { true -> "yes"; false -> "no"; null -> "" },
                     b.genre,
                 ).joinToString(",", transform = ::quote)
             )
         }
     }
+
+    /**
+     * A spreadsheet runs a cell that starts with = + - @ (or a tab or return) as a formula, and a
+     * title is whatever a catalogue or a person typed. A single quote in front makes it text; the
+     * reader below takes it off again, so a round trip returns the title as it was.
+     */
+    internal fun safe(s: String): String =
+        if (s.isNotEmpty() && s[0] in "=+-@\t\r") "'$s" else s
+
+    internal fun unsafe(s: String): String =
+        if (s.length > 1 && s[0] == '\'' && s[1] in "=+-@\t\r") s.substring(1) else s
 
     private fun quote(s: String) =
         if (s.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) {
@@ -65,8 +76,8 @@ object Csv {
                 id = nextId(),
                 isbn = Isbn.normalize(col(r, "isbn")) ?: "",
                 lccn = col(r, "lccn"),
-                title = col(r, "title"),
-                author = col(r, "author"),
+                title = unsafe(col(r, "title")),
+                author = unsafe(col(r, "author")),
                 year = col(r, "year"),
                 lc = CallNumber.cleanLc(col(r, "lc")),
                 ddc = CallNumber.cleanDdc(col(r, "dewey")),

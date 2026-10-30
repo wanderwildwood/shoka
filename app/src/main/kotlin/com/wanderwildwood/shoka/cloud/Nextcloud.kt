@@ -115,6 +115,28 @@ object LoginFlow {
      */
     fun isPlain(server: String): Boolean = server.trim().startsWith("http://", ignoreCase = true)
 
+    /** What asking the server whether a user name and app password are good came back as. */
+    enum class Check { GOOD, REFUSED, UNREACHABLE }
+
+    /** Asks the server who these credentials belong to, once, before they are kept. */
+    fun verify(account: Account): Check = try {
+        val request = Request.Builder()
+            .url("${account.server.trimEnd('/')}/ocs/v2.php/cloud/user")
+            .header("Authorization", Credentials.basic(account.user, account.password, Charsets.UTF_8))
+            .header("OCS-APIRequest", "true")
+            .header("User-Agent", AGENT)
+            .build()
+        http.newCall(request).execute().use {
+            when {
+                it.isSuccessful -> Check.GOOD
+                it.code == 401 || it.code == 403 || it.code == 997 -> Check.REFUSED
+                else -> Check.UNREACHABLE
+            }
+        }
+    } catch (e: java.io.IOException) {
+        Check.UNREACHABLE
+    }
+
     /**
      * Signing out on the server too: the app password is deleted there, so it opens nothing even
      * if a copy of it survived somewhere. Best effort: off the network, the reader is still

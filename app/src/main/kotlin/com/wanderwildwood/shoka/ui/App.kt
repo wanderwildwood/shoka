@@ -230,7 +230,26 @@ private fun ScanScreen(
                 PackageManager.PERMISSION_GRANTED
         )
     }
-    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted = it }
+    // Refused with "don't ask again": asking again answers at once, so the button has to lead to
+    // the app's page in Android's settings instead.
+    var refusedForGood by remember { mutableStateOf(false) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        granted = it
+        val activity = context as? android.app.Activity
+        refusedForGood = !it && activity != null &&
+            !androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)
+    }
+    // Back from Android's settings, with the camera allowed there.
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(owner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                granted = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
     var torch by rememberSaveable { mutableStateOf(false) }
     // Reading the ISBN printed as text, for a book with no barcode or a damaged one.
     var readText by rememberSaveable { mutableStateOf(false) }
@@ -292,12 +311,16 @@ private fun ScanScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     TextMMD(
-                        text = stringResource(R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center,
+                        text = stringResource(if (refusedForGood) R.string.camera_refused else R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.labelSmall,
                     )
                     // The button draws black on nothing, so on the black camera box it sits on white.
                     Box(Modifier.padding(top = 4.dp).background(Color.White, RoundedCornerShape(8.dp))) {
-                        HouseButton(stringResource(R.string.camera_allow), { ask.launch(Manifest.permission.CAMERA) })
+                        if (refusedForGood) {
+                            HouseButton(stringResource(R.string.open_app_settings), { openAppSettings(context) })
+                        } else {
+                            HouseButton(stringResource(R.string.camera_allow), { ask.launch(Manifest.permission.CAMERA) })
+                        }
                     }
                 }
             }

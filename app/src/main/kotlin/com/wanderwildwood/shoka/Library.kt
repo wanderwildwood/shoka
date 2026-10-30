@@ -22,6 +22,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import com.wanderwildwood.shoka.cloud.Account
+import com.wanderwildwood.shoka.cloud.LoginFlow
 import com.wanderwildwood.shoka.cloud.Secrets
 import org.json.JSONArray
 import org.json.JSONObject
@@ -389,6 +390,12 @@ class Library(app: Application) : AndroidViewModel(app) {
     }
 
     fun signOut() {
+        val leaving = account.value
+        // The app password is deleted on the server too, best effort: off the network the reader is
+        // still signed out here, and it can be revoked in the server's security settings.
+        if (leaving != null) {
+            viewModelScope.launch(Dispatchers.IO) { runCatching { LoginFlow.revoke(leaving) } }
+        }
         prefs.edit().remove("account").remove("lastSync").apply()
         remoteTag = null
         account.value = null
@@ -409,8 +416,14 @@ class Library(app: Application) : AndroidViewModel(app) {
         runCatching {
             val rows = shelf.value
             val text = Csv.write(rows, system.value, ::sectionName)
-            getApplication<Application>().contentResolver.openOutputStream(uri, "wt")!!
-                .use { it.write(text.toByteArray()) }
+            val resolver = getApplication<Application>().contentResolver
+            try {
+                resolver.openOutputStream(uri, "wt")!!.use { it.write(text.toByteArray()) }
+            } catch (e: Exception) {
+                // A file the reader chose and that is empty is worse than none.
+                runCatching { android.provider.DocumentsContract.deleteDocument(resolver, uri) }
+                throw e
+            }
             rows.size
         }.getOrNull()
     }

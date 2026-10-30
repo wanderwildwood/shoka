@@ -390,8 +390,17 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
     val notLogin = stringResource(R.string.cloud_qr_not_login)
     val noServer = stringResource(R.string.cloud_no_server)
     val missing = stringResource(R.string.cloud_missing)
+    val plainServer = stringResource(R.string.cloud_plain_http)
+    val checking = stringResource(R.string.cloud_checking)
+    val refused = stringResource(R.string.cloud_refused)
     var qr by remember { mutableStateOf(false) }
-    val askCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { qr = it }
+    var cameraRefusedForGood by remember { mutableStateOf(false) }
+    val askCamera = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        qr = it
+        val activity = context as? android.app.Activity
+        cameraRefusedForGood = !it && activity != null &&
+            !androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)
+    }
 
     EInkDialog(onDismiss = dismiss) {
         // One tall item: a screen that cannot hold it all reads it a screen at a time.
@@ -447,11 +456,14 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                 if (!typed) {
                     DialogButton(stringResource(R.string.cloud_sign_in), filled = true) {
                         if (server.isBlank()) { problem = noServer; return@DialogButton }
+                        if (LoginFlow.isPlain(server)) { problem = plainServer; return@DialogButton }
                         if (waiting) return@DialogButton
                         scope.launch {
                             val started = runCatching { withContext(Dispatchers.IO) { LoginFlow.start(server) } }.getOrNull()
                             if (started == null) { problem = unreachable; return@launch }
-                            val opened = runCatching {
+                            // Only a real browser: the system's WebView shell answers a web address on some
+                            // phones and then crashes. With none, fall through to the app-password way.
+                            val opened = hasRealBrowser(context, started.loginUrl) && runCatching {
                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(started.loginUrl)))
                             }.isSuccess
                             if (!opened) { problem = noBrowser; typed = true; return@launch }
@@ -468,13 +480,24 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                     if (hasCamera(context)) DialogButton(stringResource(R.string.cloud_scan_qr)) {
                         problem = null
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) qr = true
+                        else if (cameraRefusedForGood) openAppSettings(context)
                         else askCamera.launch(Manifest.permission.CAMERA)
                     }
+                    if (cameraRefusedForGood) Note(stringResource(R.string.camera_refused))
                     DialogButton(stringResource(R.string.cloud_type_password)) { typed = true }
                 } else {
                     DialogButton(stringResource(R.string.cloud_sign_in), filled = true) {
                         if (server.isBlank() || user.isBlank() || password.isEmpty()) { problem = missing; return@DialogButton }
-                        lib.signIn(Account(LoginFlow.normalise(server), user.trim(), password.trim()))
+                        if (LoginFlow.isPlain(server)) { problem = plainServer; return@DialogButton }
+                        val entered = Account(LoginFlow.normalise(server), user.trim(), password.trim())
+                        scope.launch {
+                            problem = checking
+                            when (withContext(Dispatchers.IO) { LoginFlow.verify(entered) }) {
+                                LoginFlow.Check.GOOD -> { problem = null; lib.signIn(entered) }
+                                LoginFlow.Check.REFUSED -> problem = refused
+                                LoginFlow.Check.UNREACHABLE -> problem = unreachable
+                            }
+                        }
                     }
                 }
             }

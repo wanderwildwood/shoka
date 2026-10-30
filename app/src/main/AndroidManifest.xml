@@ -17,6 +17,12 @@
     <queries>
         <!-- Audio Reading, asked whether it has a book, for "Listen" on the book's page. -->
         <package android:name="com.wanderwildwood.mimidoku" />
+        <!-- Which browsers the phone has, so a link never goes to the WebView test shell. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
     </queries>
 
     <application
