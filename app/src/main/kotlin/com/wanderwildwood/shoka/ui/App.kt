@@ -290,13 +290,7 @@ private fun ScanScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     TextMMD(text = stringResource(R.string.camera_needed), color = Color.White, textAlign = TextAlign.Center)
-                    Box(
-                        Modifier.padding(top = 8.dp).heightIn(min = 48.dp).border(1.dp, Color.White)
-                            .clickable { ask.launch(Manifest.permission.CAMERA) }.padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        TextMMD(text = stringResource(R.string.camera_allow), color = Color.White, fontWeight = FontWeight.Bold)
-                    }
+                    HouseButton(stringResource(R.string.camera_allow), { ask.launch(Manifest.permission.CAMERA) }, Modifier.padding(top = 8.dp))
                 }
             }
         }
