@@ -41,7 +41,7 @@ fun AboutDialog(onDismiss: () -> Unit) {
     // Back in the Licences page returns to the About rather than leaving both.
     EInkDialog(onDismiss = { if (licences) licences = false else onDismiss() }) {
         if (licences) {
-            LicencesPage(onBack = { licences = false }, room = room)
+            LicencesScreen(rememberLicencesData(), rememberLicencesLabels(), onBack = { licences = false }, modifier = Modifier.fillMaxWidth().height(room))
             return@EInkDialog
         }
         PagedColumn(Modifier.fillMaxWidth().height(room)) {

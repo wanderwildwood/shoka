@@ -32,9 +32,9 @@ or by hand.
   hand; so does the **+** in the top bar, for a book with nothing to look it up by.
 - A barcode that isn't an ISBN (often a price code on a paperback) is turned away with a
   low tone.
-- **Listen**, on a book's page, when [Audiobooks](https://github.com/wanderwildwood/mimidoku)
+- **Listen**, on a book's page, when [Audio Reader](https://github.com/wanderwildwood/mimidoku)
   has a recording of it (on the card or on its Audiobookshelf server): it opens the book
-  there. Audiobooks answers Shelf alone, and only about the book asked for.
+  there. Audio Reader answers Shelf alone, and only about the book asked for.
 
 Without a connection, books are still scanned and kept. They are looked up as soon as the
 connection comes back, and again each time the app is opened.
