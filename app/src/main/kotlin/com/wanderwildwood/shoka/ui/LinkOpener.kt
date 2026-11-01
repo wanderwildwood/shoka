@@ -65,6 +65,5 @@ fun openAppSettings(context: Context) {
 /** True when a web address would open in a real browser (never the WebView shell). */
 fun hasRealBrowser(context: Context, url: String): Boolean {
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE)
-    val handler = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
-    return isRealBrowser(handler?.activityInfo?.packageName)
+    return browserAvailable(context, intent)
 }
