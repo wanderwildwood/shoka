@@ -101,13 +101,12 @@ fun ShelfApp(lib: Library) {
     } else Column(
         Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface).systemBarsPadding().imePadding()
     ) {
-        // Scan and Shelf order are the app's two views; adding by hand, the settings and About
+        // Scan and Shelf order are the app's two views; adding by hand and the settings
         // are the bar's.
         val tabs = listOf(stringResource(R.string.tab_scan), stringResource(R.string.tab_shelf))
         val buttons: @Composable () -> Unit = {
             BarButton(Icons.Add, stringResource(R.string.by_hand)) { byHand = true }
             BarButton(Icons.Settings, stringResource(R.string.settings)) { settings = true }
-            BarButton(Icons.Info, stringResource(R.string.about)) { about = true }
         }
         // One 48dp line holds the tabs and the buttons, upright and sideways: the screen is
         // short either way, and two bars and a tab row took a fifth of it.
