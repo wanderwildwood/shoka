@@ -201,7 +201,6 @@
     <string name="about_open_source_heading">Open source</string>
     <string name="about_bundled">Built with Mudita MMD, AndroidX, Jetpack Compose, CameraX, OkHttp and Kotlin; barcodes are read with zxing-cpp and printed numbers with Tesseract (with Leptonica, libjpeg and libpng) and its English model; the Lato typeface and Material Symbols icons. The full list, with each licence and its text, is under Licences.</string>
     <string name="about_feed_the_llamas">Feed the llamas</string>
-    <string name="about_no_browser">There is no browser on this phone to open that with.</string>
     <string name="about_close">Close</string>
     <string name="about_licences">Licences</string>
     <string name="licences_title">Licences</string>
