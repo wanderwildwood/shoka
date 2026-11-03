@@ -358,7 +358,7 @@ private fun ScanScreen(
     val recentBooks: @Composable ColumnScope.() -> Unit = {
         pulledWords(pull.pulled)?.let { line ->
             Small(line, Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp))
-            HorizontalDividerMMD(thickness = 1.dp)
+            DottedRule()
         }
         if (recent.isEmpty()) Small(stringResource(R.string.recent_empty), Modifier.padding(16.dp), maxLines = 3)
         PagedColumn(Modifier.weight(1f).fillMaxWidth(), state = recentList, onPullAtTop = if (pull.available) pull::pull else null) {
@@ -368,7 +368,7 @@ private fun ScanScreen(
                     TextMMD(text = b.title.ifEmpty { b.isbn.ifEmpty { b.lccn } }, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Small(statusLine(b, system), mono = hasCall(b, system))
                 }
-                HorizontalDividerMMD(thickness = 1.dp)
+                DottedRule()
             }
         }
     }
@@ -608,7 +608,7 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
                     HorizontalDividerMMD(thickness = 1.dp)
                 }
                 ShelfRow(p, system) { open(p.book.id) }
-                HorizontalDividerMMD(thickness = 1.dp)
+                DottedRule()
             }
         }
     }

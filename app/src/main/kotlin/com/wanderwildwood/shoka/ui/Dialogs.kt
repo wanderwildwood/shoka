@@ -195,7 +195,7 @@ fun SearchDialog(lib: Library, dismiss: () -> Unit, added: (Long, Boolean) -> Un
                         TextMMD(text = f.title, fontWeight = FontWeight.Medium, maxLines = 2)
                         Note(listOf(f.author, f.year, f.ddc).filter { it.isNotEmpty() }.joinToString("  ·  "))
                     }
-                    HorizontalDividerMMD(thickness = 1.dp)
+                    DottedRule(start = 0.dp)
                 }
             }
         }
