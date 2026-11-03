@@ -7,15 +7,15 @@ as described here.
 
 **Looking a book up** sends its ISBN or LCCN, or the title and author you search for, to the
 Library of Congress (`lx2.loc.gov`) and to Open Library (`openlibrary.org`). The Library of
-Congress serves this catalogue over plain HTTP only, so what is sent to it is not encrypted.
+Congress serves this catalog over plain HTTP only, so what is sent to it is not encrypted.
 Nothing else about you or your other books goes with it.
 
-**Nextcloud**, only if you sign in: the catalogue is written to a folder on your own
-server. While the app is on screen it asks that server every 15 seconds whether the catalogue
+**Nextcloud**, only if you sign in: the catalog is written to a folder on your own
+server. While the app is on screen it asks that server every 15 seconds whether the catalog
 has changed, so books another phone adds show up; it asks nothing while the app is closed. The app password that sign-in creates is kept in the app's private storage on the
 phone; revoke it from Nextcloud's security settings at any time.
 
-The catalogue itself is kept in the app's private storage. The app does not back it up, and
+The catalog itself is kept in the app's private storage. The app does not back it up, and
 uninstalling it removes it, along with the Nextcloud sign-in. The copy on Nextcloud stays
 there.
 
