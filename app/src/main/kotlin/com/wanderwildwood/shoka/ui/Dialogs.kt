@@ -56,7 +56,10 @@ import com.wanderwildwood.shoka.Isbn
 import com.wanderwildwood.shoka.Lccn
 import com.wanderwildwood.shoka.Library
 import com.wanderwildwood.shoka.Listen
+import com.wanderwildwood.shoka.cloud.CheckResult
 import com.wanderwildwood.shoka.cloud.LoginFlow
+import com.wanderwildwood.shoka.cloud.NextcloudCheck
+import com.wanderwildwood.shoka.cloud.Problem
 import com.wanderwildwood.shoka.Lookup
 import com.wanderwildwood.shoka.R
 import com.wanderwildwood.shoka.Shelf
@@ -366,8 +369,9 @@ private fun LabelRow(label: String, control: @Composable () -> Unit) {
 }
 
 /**
- * Nextcloud: sign in through the server's own page when this phone has a browser, or with
- * an app password typed in when it doesn't (the Kompakt may not).
+ * Nextcloud: sign in by typing the server address, the login name and an app password (the
+ * first choice, with a Test button), by scanning the QR code Nextcloud shows beside a new app
+ * password, or through the server's own page in the browser (the last choice).
  */
 @Composable
 fun CloudDialog(lib: Library, dismiss: () -> Unit) {
@@ -381,8 +385,8 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
     var server by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var typed by remember { mutableStateOf(false) }
     var waiting by remember { mutableStateOf(false) }
+    var checkingNow by remember { mutableStateOf(false) }
     var problem by remember { mutableStateOf<String?>(null) }
     var newFolder by remember(folder) { mutableStateOf(folder) }
     val noBrowser = stringResource(R.string.cloud_no_browser)
@@ -390,6 +394,17 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
     val notLogin = stringResource(R.string.cloud_qr_not_login)
     val noServer = stringResource(R.string.cloud_no_server)
     val missing = stringResource(R.string.cloud_missing)
+    val testGood = stringResource(R.string.cloud_test_good)
+    val problemText = mapOf(
+        Problem.BAD_ADDRESS to stringResource(R.string.cloud_bad_address),
+        Problem.PLAIN_HTTP to stringResource(R.string.cloud_plain_http),
+        Problem.NOT_FOUND to stringResource(R.string.cloud_not_found),
+        Problem.UNREACHABLE to stringResource(R.string.cloud_unreachable),
+        Problem.CERTIFICATE to stringResource(R.string.cloud_certificate),
+        Problem.NOT_NEXTCLOUD to stringResource(R.string.cloud_not_nextcloud),
+        Problem.WRONG_PASSWORD to stringResource(R.string.cloud_refused),
+        Problem.OTHER to stringResource(R.string.cloud_other),
+    )
     val plainServer = stringResource(R.string.cloud_plain_http)
     val checking = stringResource(R.string.cloud_checking)
     val refused = stringResource(R.string.cloud_refused)
@@ -445,59 +460,58 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                     return@item
                 }
                 Field(server, { server = it; problem = null }, R.string.cloud_server, KeyboardType.Uri, KeyboardCapitalization.None)
-                if (typed) {
-                    Field(user, { user = it; problem = null }, R.string.cloud_user, caps = KeyboardCapitalization.None)
-                    Field(password, { password = it; problem = null }, R.string.cloud_app_password, KeyboardType.Password, KeyboardCapitalization.None, secret = true)
-                    Note(stringResource(R.string.cloud_app_password_note))
-                }
+                Field(user, { user = it; problem = null }, R.string.cloud_user, caps = KeyboardCapitalization.None)
+                Field(password, { password = it; problem = null }, R.string.cloud_app_password, KeyboardType.Password, KeyboardCapitalization.None, secret = true)
+                Note(stringResource(R.string.cloud_app_password_note))
                 problem?.let { Note(it) }
                 if (waiting) Note(stringResource(R.string.cloud_waiting))
                 Spacer(Modifier.height(6.dp))
-                if (!typed) {
-                    DialogButton(stringResource(R.string.cloud_sign_in), filled = true) {
-                        if (server.isBlank()) { problem = noServer; return@DialogButton }
-                        if (LoginFlow.isPlain(server)) { problem = plainServer; return@DialogButton }
-                        if (waiting) return@DialogButton
-                        scope.launch {
-                            val started = runCatching { withContext(Dispatchers.IO) { LoginFlow.start(server) } }.getOrNull()
-                            if (started == null) { problem = unreachable; return@launch }
-                            // Only a real browser: the system's WebView shell answers a web address on some
-                            // phones and then crashes. With none, fall through to the app-password way.
-                            val opened = hasRealBrowser(context, started.loginUrl) && runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(started.loginUrl)))
-                            }.isSuccess
-                            if (!opened) { problem = noBrowser; typed = true; return@launch }
-                            waiting = true
-                            // The server gives twenty minutes to finish signing in.
-                            repeat(600) {
-                                delay(2000)
-                                val got = runCatching { withContext(Dispatchers.IO) { LoginFlow.poll(started) } }.getOrNull()
-                                if (got != null) { waiting = false; lib.signIn(got); return@launch }
-                            }
-                            waiting = false
+                // The typed sign-in: the server is asked once. Test stops there; Sign in keeps a good one.
+                fun typedCheck(keep: Boolean) {
+                    if (server.isBlank() || user.isBlank() || password.isEmpty()) { problem = missing; return }
+                    if (checkingNow) return
+                    checkingNow = true
+                    problem = checking
+                    scope.launch {
+                        val result = withContext(Dispatchers.IO) { NextcloudCheck.run(server, user, password) }
+                        checkingNow = false
+                        when (result) {
+                            is CheckResult.Good -> if (keep) { problem = null; lib.signIn(result.account) } else problem = testGood
+                            is CheckResult.Bad -> problem = problemText[result.problem]
                         }
                     }
-                    if (hasCamera(context)) DialogButton(stringResource(R.string.cloud_scan_qr)) {
-                        problem = null
-                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) qr = true
-                        else if (cameraRefusedForGood) openAppSettings(context)
-                        else askCamera.launch(Manifest.permission.CAMERA)
-                    }
-                    if (cameraRefusedForGood) Note(stringResource(R.string.camera_refused))
-                    DialogButton(stringResource(R.string.cloud_type_password)) { typed = true }
-                } else {
-                    DialogButton(stringResource(R.string.cloud_sign_in), filled = true) {
-                        if (server.isBlank() || user.isBlank() || password.isEmpty()) { problem = missing; return@DialogButton }
-                        if (LoginFlow.isPlain(server)) { problem = plainServer; return@DialogButton }
-                        val entered = Account(LoginFlow.normalise(server), user.trim(), password.trim())
-                        scope.launch {
-                            problem = checking
-                            when (withContext(Dispatchers.IO) { LoginFlow.verify(entered) }) {
-                                LoginFlow.Check.GOOD -> { problem = null; lib.signIn(entered) }
-                                LoginFlow.Check.REFUSED -> problem = refused
-                                LoginFlow.Check.UNREACHABLE -> problem = unreachable
-                            }
+                }
+                DialogButton(stringResource(R.string.cloud_sign_in), filled = true) { typedCheck(keep = true) }
+                DialogButton(stringResource(R.string.cloud_test)) { typedCheck(keep = false) }
+                if (hasCamera(context)) DialogButton(stringResource(R.string.cloud_scan_qr)) {
+                    problem = null
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) qr = true
+                    else if (cameraRefusedForGood) openAppSettings(context)
+                    else askCamera.launch(Manifest.permission.CAMERA)
+                }
+                if (cameraRefusedForGood) Note(stringResource(R.string.camera_refused))
+                // The second choice: only the address is typed, and the server's own page does the rest.
+                DialogButton(stringResource(R.string.cloud_browser)) {
+                    if (server.isBlank()) { problem = noServer; return@DialogButton }
+                    if (LoginFlow.isPlain(server)) { problem = plainServer; return@DialogButton }
+                    if (waiting) return@DialogButton
+                    scope.launch {
+                        val started = runCatching { withContext(Dispatchers.IO) { LoginFlow.start(server) } }.getOrNull()
+                        if (started == null) { problem = unreachable; return@launch }
+                        // Only a real browser: the system's WebView shell answers a web address on some
+                        // phones and then crashes. With none, the typed way above is the one to use.
+                        val opened = hasRealBrowser(context, started.loginUrl) && runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(started.loginUrl)))
+                        }.isSuccess
+                        if (!opened) { problem = noBrowser; return@launch }
+                        waiting = true
+                        // The server gives twenty minutes to finish signing in.
+                        repeat(600) {
+                            delay(2000)
+                            val got = runCatching { withContext(Dispatchers.IO) { LoginFlow.poll(started) } }.getOrNull()
+                            if (got != null) { waiting = false; lib.signIn(got); return@launch }
                         }
+                        waiting = false
                     }
                 }
             }

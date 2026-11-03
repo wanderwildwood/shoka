@@ -158,15 +158,22 @@
     <string name="no">No</string>
 
     <string name="cloud_heading">Nextcloud</string>
-    <string name="cloud_explain">Keep the catalogue in your Nextcloud, so every phone signed in to the same folder has the same books. A spreadsheet of the shelf order is written beside it.</string>
+    <string name="cloud_explain">Keep the catalogue in your Nextcloud, so every phone signed in to the same folder has the same books. A spreadsheet of the shelf order is written beside it. Type the server address, your login name and an app password; Test tries them without keeping anything.</string>
     <string name="cloud_server">Server address</string>
     <string name="cloud_sign_in">Sign in</string>
-    <string name="cloud_type_password">Type an app password instead</string>
+    <string name="cloud_browser">Sign in with the browser instead</string>
+    <string name="cloud_test">Test</string>
+    <string name="cloud_test_good">That works. Nothing was kept; press Sign in to keep it.</string>
+    <string name="cloud_bad_address">That is not an address. Type the server\'s name, such as cloud.example.org.</string>
+    <string name="cloud_not_found">That server could not be found. Check how the name is spelled.</string>
+    <string name="cloud_certificate">The server\'s certificate could not be trusted, so nothing was sent to it. Check the address.</string>
+    <string name="cloud_not_nextcloud">That address answered, but not as a Nextcloud.</string>
+    <string name="cloud_other">The server answered in a way this app does not understand. Try again in a moment.</string>
     <string name="cloud_user">Login name</string>
     <string name="cloud_app_password">App password</string>
     <string name="cloud_app_password_note">Make one in Nextcloud under Settings, Security, Devices and sessions.</string>
     <string name="cloud_waiting">Finish signing in in the browser; this waits for it.</string>
-    <string name="cloud_no_browser">There is no browser on this phone. Type an app password instead.</string>
+    <string name="cloud_no_browser">There is no browser on this phone. Type an app password above instead.</string>
     <string name="cloud_unreachable">Couldn\'t reach that server.</string>
     <string name="cloud_no_server">Type the server\'s address first.</string>
     <string name="cloud_missing">Fill in the server address, login name and app password.</string>
