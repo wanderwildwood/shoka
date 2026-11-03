@@ -1,9 +1,16 @@
 package com.wanderwildwood.shoka
 
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+
 /** Plain RFC 4180 CSV: enough for a spreadsheet to open, and for this app to read back. */
 object Csv {
     val header = listOf(
         "position", "section", "lc", "dewey", "title", "author", "year", "isbn", "lccn", "copies", "source", "fiction", "genre",
+        // Added later, at the end, so files from older versions still read: a missing column
+        // means what it always did (found, added today).
+        "status", "added",
     )
 
     /** [sectionName] turns a [Placed.section] into the heading the shelf list shows. */
@@ -17,6 +24,7 @@ object Csv {
                     b.lc, b.ddc, safe(b.title), safe(b.author), b.year, b.isbn, b.lccn, b.copies.toString(), b.source,
                     when (b.fiction) { true -> "yes"; false -> "no"; null -> "" },
                     b.genre,
+                    b.status.name.lowercase(), if (b.added > 0) Instant.ofEpochMilli(b.added).toString() else "",
                 ).joinToString(",", transform = ::quote)
             )
         }
@@ -32,6 +40,20 @@ object Csv {
 
     internal fun unsafe(s: String): String =
         if (s.length > 1 && s[0] == '\'' && s[1] in "=+-@\t\r") s.substring(1) else s
+
+    /** "found", "not found", "NOT_FOUND" ...; null for a blank or unknown word. */
+    internal fun status(s: String): Status? {
+        val k = s.trim().uppercase().replace(' ', '_').replace('-', '_')
+        return Status.entries.firstOrNull { it.name == k }
+    }
+
+    /** An instant as written above, or a plain date typed in a spreadsheet (midnight UTC); null otherwise. */
+    internal fun added(s: String): Long? {
+        val t = s.trim()
+        if (t.isEmpty()) return null
+        return runCatching { Instant.parse(t).toEpochMilli() }.getOrNull()
+            ?: runCatching { LocalDate.parse(t).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrNull()
+    }
 
     private fun quote(s: String) =
         if (s.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) {
@@ -82,9 +104,9 @@ object Csv {
                 lc = CallNumber.cleanLc(col(r, "lc")),
                 ddc = CallNumber.cleanDdc(col(r, "dewey")),
                 source = col(r, "source").ifEmpty { "imported" },
-                status = Status.FOUND,
+                status = status(col(r, "status")) ?: Status.FOUND,
                 copies = col(r, "copies").toIntOrNull()?.coerceAtLeast(1) ?: 1,
-                added = System.currentTimeMillis(),
+                added = added(col(r, "added")) ?: System.currentTimeMillis(),
                 fiction = when (col(r, "fiction").lowercase()) { "yes" -> true; "no" -> false; else -> null },
                 genre = col(r, "genre").lowercase().takeIf { it in Shelf.genres || it == Shelf.FICTION } ?: "",
             )

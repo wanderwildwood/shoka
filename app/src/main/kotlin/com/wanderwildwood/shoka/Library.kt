@@ -450,6 +450,8 @@ class Library(app: Application) : AndroidViewModel(app) {
         if (adding.isNotEmpty()) {
             all.update { it + adding }
             changed()
+            // A book still waiting for its catalogue record when it was saved goes on waiting here.
+            adding.filter { it.status == Status.LOOKING || it.status == Status.OFFLINE }.forEach { enqueue(it.id) }
         }
         return Imported(read = fresh.size, added = adding.size)
     }
