@@ -1,6 +1,6 @@
 # Shelf
 
-A book catalogue for the [Mudita Kompakt](https://mudita.com/products/kompakt/), made for
+A book catalog for the [Mudita Kompakt](https://mudita.com/products/kompakt/), made for
 taking a whole house of books off the shelves and putting them back in order. Scan the
 barcode on each book. Shelf finds the book's Dewey number and lists the whole collection in
 the order it goes back on the shelf. It will install on any device with Android 11 or later,
@@ -12,11 +12,11 @@ or by hand.
 | ![Scanning: the camera, other ways to add a book, and the books so far](screenshots/1-scan.png) | ![The collection in Sections, fiction shelved by genre](screenshots/2-shelf.png) |
 | ![A book already catalogued, going back on the shelf](screenshots/3-place.png) | ![A book's details, to correct](screenshots/4-edit.png) |
 
-## Cataloguing
+## Cataloging
 
 - **Scan** the barcode on the back cover. There are no modes: a new book goes into the
-  catalogue the moment it is read and is looked up in the background, so you can keep
-  scanning without waiting. A book already catalogued is taken to be going back on the
+  catalog the moment it is read and is looked up in the background, so you can keep
+  scanning without waiting. A book already cataloged is taken to be going back on the
   shelf, and Shelf shows where: its number in shelf order and the books either side
   (with **Add another copy** for when it really is a second one). One beep for a new
   book, two for one already here. A new book shows its place too, once it is looked up.
@@ -54,37 +54,37 @@ fiction, Fantasy, Horror, Romance, Historical fiction and Children's. Then come 
 hundreds (100 Philosophy, 500 Science, 800 Literature and so on). Within each section, books
 stand by author and then by title. A label on the edge of each shelf is enough. A book
 counts as fiction when its Dewey number is a fiction number (813, 823, 891.73 and the like),
-and its genre comes from the catalogue's subject headings. **Fiction** and **Shelf** in a
+and its genre comes from the catalog's subject headings. **Fiction** and **Shelf** in a
 book's details overrule either. In this order, a scanned book's place names its
 section and the books either side of it within that section.
 
-**To fix** narrows the list to the books still to be looked up or that no catalogue knew,
+**To fix** narrows the list to the books still to be looked up or that no catalog knew,
 and the books with no call number. Tap any book to correct it, change the number of copies,
 look it up again, or delete it.
 
 ## Where the details come from
 
-The [Library of Congress catalogue](https://www.loc.gov/) first, then
+The [Library of Congress catalog](https://www.loc.gov/) first, then
 [Open Library](https://openlibrary.org/) for anything it lacks. Neither needs an account.
 When neither gives a Dewey number, or only Open Library knows the ISBN, Shelf looks for
 another Library of Congress edition of the same title and author and takes its number
 (Dewey numbers the work, not the printing) and its form of the author's name. Whether a
-book is fiction comes from the catalogue when it says so, and from the Dewey number when
+book is fiction comes from the catalog when it says so, and from the Dewey number when
 it doesn't. A novel's genre comes from its subject headings ("Detective and mystery
 stories", "Science fiction" and the like), and its audience code for children's books.
 
 ## Keeping the list
 
-The catalogue lives on the phone. **Settings (the cog) → Save as a spreadsheet** writes it out in
+The catalog lives on the phone. **Settings (the cog) → Save as a spreadsheet** writes it out in
 shelf order as a CSV (with each book's section, in the Sections order), and **Add from a
 spreadsheet** reads one back in.
 
 With a [Nextcloud](https://nextcloud.com/) account, **Settings → Nextcloud** keeps the
-catalogue in a folder there (`Books` unless you choose another), as `catalogue.json` with
+catalog in a folder there (`Books` unless you choose another), as `catalogue.json` with
 a `shelf-order.csv` beside it. Every phone signed in to the same folder keeps the same
 list, so two people can scan different rooms at once: while Shelf is open it asks the
-server every 15 seconds whether the catalogue has changed (a few hundred bytes, not the
-catalogue), so a book scanned on one phone shows on the other within about twenty seconds.
+server every 15 seconds whether the catalog has changed (a few hundred bytes, not the
+catalog), so a book scanned on one phone shows on the other within about twenty seconds.
 Nothing is asked while the app is closed. Sign in through the server's own
 page, or with an app password: make one in Nextcloud's security settings on a computer,
 press **Show QR code for mobile apps**, and scan it with **Scan a QR code**. Pulling a book
@@ -102,7 +102,7 @@ A release build needs a keystore at `signing/signing.keystore` with a matching
 release build comes out unsigned rather than wrongly signed.
 
 `./gradlew testDebugUnitTest` runs the tests: ISBN and LCCN checking, call-number sort
-order, the Sections order, merging two phones' catalogues, and reading Nextcloud's sign-in QR code.
+order, the Sections order, merging two phones' catalogs, and reading Nextcloud's sign-in QR code.
 
 ## Getting it, and keeping it
 
@@ -115,7 +115,7 @@ For updates without doing this by hand, add this repository to
 
     https://github.com/wanderwildwood/shoka
 
-## Licence
+## License
 
 GPL-3.0-only. See [LICENSE](LICENSE).
 
@@ -135,7 +135,7 @@ Barcodes are read with [zxing-cpp](https://github.com/zxing-cpp/zxing-cpp), Apac
 
 Printed ISBNs are read with [Tesseract](https://github.com/tesseract-ocr/tesseract), Apache 2.0,
 through [Tesseract4Android](https://github.com/adaptech-cz/Tesseract4Android), Apache 2.0, which
-carries [Leptonica](http://www.leptonica.org/) (BSD 2-clause), libjpeg (the IJG licence) and
-libpng (the libpng licence). The model is the English one from
+carries [Leptonica](http://www.leptonica.org/) (BSD 2-clause), libjpeg (the IJG license) and
+libpng (the libpng license). The model is the English one from
 [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast), Apache 2.0, with its word lists
 taken out, since only the number is read.

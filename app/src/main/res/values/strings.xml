@@ -13,10 +13,10 @@
     <string name="camera_allow">Allow the camera</string>
 
     <string name="hint_scan">Point the camera at the barcode on the back cover. A new book is added and looked up in the background; one already here shows where it goes back on the shelf, and which books stand either side of it.</string>
-    <string name="just_added">Added to the catalogue</string>
+    <string name="just_added">Added to the catalog</string>
 
     <string name="looking_up">Looking it up…</string>
-    <string name="not_found">No catalogue knows this one. Tap it to fill it in.</string>
+    <string name="not_found">No catalog knows this one. Tap it to fill it in.</string>
     <string name="offline">No connection. It will be looked up when there is one.</string>
     <string name="no_call_number">No call number</string>
 
@@ -76,10 +76,10 @@
         <item>800 · Literature</item>
         <item>900 · History, geography, travel</item>
     </string-array>
-    <string name="filter">Search the catalogue</string>
+    <string name="filter">Search the catalog</string>
     <string name="needs_attention">To fix</string>
     <string name="unclassified_dewey">No Dewey number — by author</string>
-    <string name="empty_shelf">Nothing catalogued yet. Scan a book, or add one on the Scan page.</string>
+    <string name="empty_shelf">Nothing cataloged yet. Scan a book, or add one on the Scan page.</string>
     <string name="hint_scan_short">Point the camera at a barcode.</string>
     <string name="recent_empty">Books you scan or add show here, newest first.</string>
     <string name="filter_none">No book matches “%1$s”.</string>
@@ -158,7 +158,7 @@
     <string name="no">No</string>
 
     <string name="cloud_heading">Nextcloud</string>
-    <string name="cloud_explain">Keep the catalogue in your Nextcloud, so every phone signed in to the same folder has the same books. A spreadsheet of the shelf order is written beside it. Type the server address, your login name and an app password; Test tries them without keeping anything.</string>
+    <string name="cloud_explain">Keep the catalog in your Nextcloud, so every phone signed in to the same folder has the same books. A spreadsheet of the shelf order is written beside it. Type the server address, your login name and an app password; Test tries them without keeping anything.</string>
     <string name="cloud_server">Server address</string>
     <string name="cloud_sign_in">Sign in</string>
     <string name="cloud_browser">Sign in with the browser instead</string>
@@ -185,7 +185,7 @@
     <string name="cloud_failed">The last sync didn\'t go through. It will try again after the next change.</string>
     <string name="cloud_last">Last synced %1$s</string>
     <string name="cloud_folder">Folder</string>
-    <string name="cloud_folder_note">To share the catalogue, share this folder in Nextcloud and sign the other phone in to it.</string>
+    <string name="cloud_folder_note">To share the catalog, share this folder in Nextcloud and sign the other phone in to it.</string>
     <string name="cloud_use_folder">Use this folder</string>
     <string name="pull_syncing">Syncing…</string>
     <string name="pull_up_to_date">Up to date</string>
@@ -200,20 +200,20 @@
     <string name="about_title">Shelf %1$s</string>
     <string name="about_what">Scan a book\'s barcode and it finds the book\'s call number, then lists the whole collection in shelf order.</string>
     <string name="about_privacy_heading">Privacy</string>
-    <string name="about_privacy_lookups">To look a book up, Shelf sends its ISBN or LCCN, or the title and author you search for, to the Library of Congress catalogue (lx2.loc.gov) and to Open Library (openlibrary.org). The Library of Congress answers only over plain HTTP, so what goes to it is not encrypted. Nothing else about you or your books goes with it, and neither needs an account.</string>
-    <string name="about_privacy_cloud">If you sign in to Nextcloud, the catalogue and a spreadsheet of the shelf order sync with the folder you choose on that server, and with every phone signed in to it; while Shelf is open it checks that folder every 15 seconds for books another phone added. Your sign-in details are kept on this phone. Nothing is sent to the app\'s maker.</string>
+    <string name="about_privacy_lookups">To look a book up, Shelf sends its ISBN or LCCN, or the title and author you search for, to the Library of Congress catalog (lx2.loc.gov) and to Open Library (openlibrary.org). The Library of Congress answers only over plain HTTP, so what goes to it is not encrypted. Nothing else about you or your books goes with it, and neither needs an account.</string>
+    <string name="about_privacy_cloud">If you sign in to Nextcloud, the catalog and a spreadsheet of the shelf order sync with the folder you choose on that server, and with every phone signed in to it; while Shelf is open it checks that folder every 15 seconds for books another phone added. Your sign-in details are kept on this phone. Nothing is sent to the app\'s maker.</string>
     <string name="about_privacy_phone">The camera reads barcodes, printed ISBNs and Nextcloud\'s sign-in code on the phone; no picture is kept or sent. If Audio Reader is installed, a book\'s page asks it, on the phone, whether it has that book. There are no ads, no analytics and no tracking. Spreadsheets you save go only where you choose to save them.</string>
     <string name="about_terms_heading">Terms</string>
-    <string name="about_terms">This app is free software under the GNU General Public License v3. It comes with no warranty: use it at your own risk. Call numbers come from the catalogues and can be wrong.</string>
+    <string name="about_terms">This app is free software under the GNU General Public License v3. It comes with no warranty: use it at your own risk. Call numbers come from the catalogs and can be wrong.</string>
     <string name="about_open_source_heading">Open source</string>
-    <string name="about_bundled">Built with Mudita MMD, AndroidX, Jetpack Compose, CameraX, OkHttp and Kotlin; barcodes are read with zxing-cpp and printed numbers with Tesseract (with Leptonica, libjpeg and libpng) and its English model; the Lato typeface and Material Symbols icons. The full list, with each licence and its text, is under Licences.</string>
+    <string name="about_bundled">Built with Mudita MMD, AndroidX, Jetpack Compose, CameraX, OkHttp and Kotlin; barcodes are read with zxing-cpp and printed numbers with Tesseract (with Leptonica, libjpeg and libpng) and its English model; the Lato typeface and Material Symbols icons. The full list, with each license and its text, is under Licenses.</string>
     <string name="about_feed_the_llamas">Feed the llamas</string>
     <string name="about_close">Close</string>
-    <string name="about_licences">Licences</string>
-    <string name="licences_title">Licences</string>
+    <string name="about_licences">Licenses</string>
+    <string name="licences_title">Licenses</string>
     <string name="licences_source_head">Source code</string>
-    <string name="licences_no_text">%s needs no licence text here.</string>
-    <string name="licences_licence">Shelf is free software: GPL-3.0-only, copyright wander wildwood. What it is built on keeps its own licences, each on its own page.</string>
+    <string name="licences_no_text">%s needs no license text here.</string>
+    <string name="licences_licence">Shelf is free software: GPL-3.0-only, copyright wander wildwood. What it is built on keeps its own licenses, each on its own page.</string>
     <string name="licences_back">Back</string>
     <string name="about_no_browser_address">No browser is installed. The address is %1$s.</string>
     <string name="open_app_settings">Open app settings</string>
@@ -224,5 +224,5 @@
     <string name="licences_full_head">Full texts</string>
     <string name="licences_full_gpl">GNU General Public License v3 (full text)</string>
     <string name="licences_full_apache">Apache License 2.0 (full text)</string>
-    <string name="licences_full_ofl">SIL Open Font Licence 1.1 (full text)</string>
+    <string name="licences_full_ofl">SIL Open Font License 1.1 (full text)</string>
 </resources>
