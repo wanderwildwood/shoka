@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import com.mudita.mmd.ThemeMMD
 import com.wanderwildwood.shoka.ui.ArmedScope
 import com.wanderwildwood.shoka.ui.ShelfApp
+import com.wanderwildwood.shoka.ui.houseTypography
 import com.wanderwildwood.shoka.ui.monochrome
 import kotlinx.coroutines.launch
 
@@ -45,7 +46,7 @@ class MainActivity : ComponentActivity() {
                     else controller.show(WindowInsetsCompat.Type.statusBars())
                     onDispose { }
                 }
-                ThemeMMD(colorScheme = monochrome) {
+                ThemeMMD(colorScheme = monochrome, typography = houseTypography) {
                     ArmedScope { ShelfApp(library) }
                 }
             }
