@@ -1,0 +1,15 @@
+{
+  "uniqueId": "leptonica",
+  "name": "Leptonica",
+  "artifactVersion": "1.85.0",
+  "description": "Image processing for Tesseract, built into Tesseract4Android as native code (1.85.0).",
+  "developers": [
+    {
+      "name": "Dan Bloomberg and the Leptonica contributors"
+    }
+  ],
+  "website": "http://www.leptonica.org",
+  "licenses": [
+    "leptonica-bsd"
+  ]
+}

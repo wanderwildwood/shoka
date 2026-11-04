@@ -1,0 +1,14 @@
+{
+  "uniqueId": "tessdata-fast-eng",
+  "name": "Tesseract English model (tessdata_fast)",
+  "description": "The English model Tesseract reads printed ISBNs with, from tessdata_fast, with its word lists taken out; bundled in the app.",
+  "developers": [
+    {
+      "name": "Google and the Tesseract authors"
+    }
+  ],
+  "website": "https://github.com/tesseract-ocr/tessdata_fast",
+  "licenses": [
+    "Apache-2.0"
+  ]
+}

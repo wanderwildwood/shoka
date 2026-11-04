@@ -1,0 +1,8 @@
+{
+  "uniqueId": "cz.adaptech.tesseract4android:tesseract4android",
+  "name": "Tesseract OCR, via Tesseract4Android",
+  "description": "Reads the ISBN printed as text: Tesseract 5.5.1, built as native code by Tesseract4Android 4.9.0, which also carries Leptonica, libjpeg and libpng (listed on their own).",
+  "developers": [{ "name": "Google and the Tesseract authors, adaptech.cz" }],
+  "website": "https://github.com/adaptech-cz/Tesseract4Android",
+  "licenses": ["Apache-2.0"]
+}

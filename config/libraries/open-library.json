@@ -1,0 +1,14 @@
+{
+  "uniqueId": "open-library",
+  "name": "Open Library",
+  "description": "Book details looked up over the network (openlibrary.org); nothing of it is bundled.",
+  "developers": [
+    {
+      "name": "Internet Archive"
+    }
+  ],
+  "website": "https://openlibrary.org",
+  "licenses": [
+    "openlibrary-data"
+  ]
+}

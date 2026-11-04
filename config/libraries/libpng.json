@@ -1,0 +1,15 @@
+{
+  "uniqueId": "libpng",
+  "name": "libpng",
+  "artifactVersion": "1.6.48",
+  "description": "PNG reading for Leptonica, built into Tesseract4Android as native code (1.6.48).",
+  "developers": [
+    {
+      "name": "The PNG Reference Library Authors"
+    }
+  ],
+  "website": "http://www.libpng.org/pub/png/libpng.html",
+  "licenses": [
+    "libpng-2.0"
+  ]
+}
