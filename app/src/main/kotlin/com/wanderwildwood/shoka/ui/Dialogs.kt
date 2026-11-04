@@ -237,7 +237,6 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
     var fiction by remember(book.id) { mutableStateOf(book.fiction) }
     var genre by remember(book.id) { mutableStateOf(book.genre) }
     var picking by remember(book.id) { mutableStateOf(false) }
-    var armed by remember { mutableStateOf(false) }
     // A year is up to four digits ("180" for Marcus Aurelius); a Dewey number starts with three.
     val yearOk = year.isBlank() || year.trim().matches(Regex("""\d{1,4}"""))
     val ddcOk = ddc.isBlank() || CallNumber.cleanDdc(ddc).isNotEmpty()
@@ -251,10 +250,6 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
         if (ddc.isEmpty()) ddc = book.ddc
         if (genre.isEmpty()) genre = book.genre
     }
-    // An armed delete disarms itself, so a stray tap later finds nothing live.
-    // Six seconds: the panel takes one or two of them just to show the question.
-    LaunchedEffect(armed) { if (armed) { delay(6000); armed = false } }
-
     fun edited() = book.copy(
         title = title.trim(), author = author.trim(), year = year.trim(),
         ddc = ddc.trim(), copies = copies, fiction = fiction, genre = genre,
@@ -275,86 +270,93 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
     val current = codes.indexOf(genre.takeIf { it in Shelf.genres } ?: Shelf.FICTION)
 
     EInkDialog(onDismiss = dismiss) {
-        // The book's page turns like any list here when it is taller than the screen; Save and
-        // Cancel stay under it.
-        PagedColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
-            item(key = "title") {
-                Field(title, { title = it }, R.string.field_title)
-                Field(author, { author = it }, R.string.field_author)
-                if (!titled) Note(stringResource(R.string.edit_needs_title))
-            }
-            item(key = "numbers") {
-                Field(year, { year = it }, R.string.field_year, KeyboardType.Number)
-                if (!yearOk) Note(stringResource(R.string.edit_bad_year))
-                Field(ddc, { ddc = it }, R.string.field_dewey, KeyboardType.Decimal)
-                if (!ddcOk) Note(stringResource(R.string.edit_bad_dewey))
-            }
-            item(key = "copies") {
-                LabelRow(stringResource(R.string.field_copies)) {
-                    SmallButton("−") { if (copies > 1) copies-- }
-                    TextMMD(
-                        text = copies.toString(), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-                        modifier = Modifier.widthIn(min = 40.dp),
-                    )
-                    SmallButton("+") { copies++ }
-                }
-            }
-            item(key = "fiction") {
-                LabelRow(stringResource(R.string.field_fiction)) {
-                    SmallButton(stringResource(if (isFiction) R.string.yes else R.string.no)) {
-                        fiction = (!isFiction).takeIf { it != guess }
+        // Its own ArmedScope: the dialog is a window of its own, so a tap elsewhere in it
+        // reaches only a scope inside it. Delete stays armed until that tap, Back or leaving.
+        ArmedScope(Modifier.fillMaxWidth()) {
+            Column {
+                var armed by rememberArmedFlag()
+                // The book's page turns like any list here when it is taller than the screen; Save and
+                // Cancel stay under it.
+                PagedColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+                    item(key = "title") {
+                        Field(title, { title = it }, R.string.field_title)
+                        Field(author, { author = it }, R.string.field_author)
+                        if (!titled) Note(stringResource(R.string.edit_needs_title))
                     }
-                }
-            }
-            if (isFiction) {
-                item(key = "genre") {
-                    LabelRow(stringResource(R.string.field_genre)) {
-                        SmallButton(names[current], filled = picking) { picking = !picking }
+                    item(key = "numbers") {
+                        Field(year, { year = it }, R.string.field_year, KeyboardType.Number)
+                        if (!yearOk) Note(stringResource(R.string.edit_bad_year))
+                        Field(ddc, { ddc = it }, R.string.field_dewey, KeyboardType.Decimal)
+                        if (!ddcOk) Note(stringResource(R.string.edit_bad_dewey))
                     }
-                }
-                if (picking) {
-                    items(codes.size, key = { "genre-" + codes[it] }) { i ->
-                        if (i != current) {
-                            DialogButton(names[i]) { genre = codes[i]; picking = false }
+                    item(key = "copies") {
+                        LabelRow(stringResource(R.string.field_copies)) {
+                            SmallButton("−") { if (copies > 1) copies-- }
+                            TextMMD(
+                                text = copies.toString(), fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                                modifier = Modifier.widthIn(min = 40.dp),
+                            )
+                            SmallButton("+") { copies++ }
+                        }
+                    }
+                    item(key = "fiction") {
+                        LabelRow(stringResource(R.string.field_fiction)) {
+                            SmallButton(stringResource(if (isFiction) R.string.yes else R.string.no)) {
+                                fiction = (!isFiction).takeIf { it != guess }
+                            }
+                        }
+                    }
+                    if (isFiction) {
+                        item(key = "genre") {
+                            LabelRow(stringResource(R.string.field_genre)) {
+                                SmallButton(names[current], filled = picking) { picking = !picking }
+                            }
+                        }
+                        if (picking) {
+                            items(codes.size, key = { "genre-" + codes[it] }) { i ->
+                                if (i != current) {
+                                    DialogButton(names[i]) { genre = codes[i]; picking = false }
+                                }
+                            }
+                        }
+                    }
+                    item(key = "ids") {
+                        val ids = listOfNotNull(
+                            book.isbn.takeIf { it.isNotEmpty() }?.let { "ISBN $it" },
+                            book.lccn.takeIf { it.isNotEmpty() }?.let { "LCCN $it" },
+                        ).joinToString("  ·  ")
+                        Column(Modifier.padding(vertical = 6.dp)) {
+                            if (ids.isNotEmpty()) Note(ids)
+                            if (book.source.isNotEmpty()) Note(stringResource(R.string.source, book.source))
+                        }
+                    }
+                    // Listen only when Audio Reading has this book to play.
+                    recording?.let { key ->
+                        item(key = "listen") { DialogButton(stringResource(R.string.listen)) { Listen.open(context, key); dismiss() } }
+                    }
+                    if (book.isbn.isNotEmpty() || book.lccn.isNotEmpty()) {
+                        item(key = "again") {
+                            DialogButton(stringResource(R.string.look_again)) {
+                                if (!(yearOk && ddcOk && titled)) return@DialogButton
+                                lib.update(edited()); lib.retry(book.id); dismiss()
+                            }
+                        }
+                    }
+                    // Last, after everything that only adjusts.
+                    item(key = "delete") {
+                        DialogButton(stringResource(if (armed) R.string.delete_armed else R.string.delete), filled = armed) {
+                            if (armed) { lib.delete(book.id); dismiss() } else armed = true
                         }
                     }
                 }
-            }
-            item(key = "ids") {
-                val ids = listOfNotNull(
-                    book.isbn.takeIf { it.isNotEmpty() }?.let { "ISBN $it" },
-                    book.lccn.takeIf { it.isNotEmpty() }?.let { "LCCN $it" },
-                ).joinToString("  ·  ")
-                Column(Modifier.padding(vertical = 6.dp)) {
-                    if (ids.isNotEmpty()) Note(ids)
-                    if (book.source.isNotEmpty()) Note(stringResource(R.string.source, book.source))
-                }
-            }
-            // Listen only when Audio Reading has this book to play.
-            recording?.let { key ->
-                item(key = "listen") { DialogButton(stringResource(R.string.listen)) { Listen.open(context, key); dismiss() } }
-            }
-            if (book.isbn.isNotEmpty() || book.lccn.isNotEmpty()) {
-                item(key = "again") {
-                    DialogButton(stringResource(R.string.look_again)) {
-                        if (!(yearOk && ddcOk && titled)) return@DialogButton
-                        lib.update(edited()); lib.retry(book.id); dismiss()
+                Spacer(Modifier.height(8.dp))
+                Row {
+                    Pair(stringResource(R.string.save), Modifier.weight(1f), filled = true) {
+                        if (yearOk && ddcOk && titled) { lib.update(edited()); dismiss() }
                     }
+                    Pair(stringResource(R.string.cancel), Modifier.weight(1f), onClick = dismiss)
                 }
             }
-            // Last, after everything that only adjusts.
-            item(key = "delete") {
-                DialogButton(stringResource(if (armed) R.string.delete_armed else R.string.delete), filled = armed) {
-                    if (armed) { lib.delete(book.id); dismiss() } else armed = true
-                }
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Row {
-            Pair(stringResource(R.string.save), Modifier.weight(1f), filled = true) {
-                if (yearOk && ddcOk && titled) { lib.update(edited()); dismiss() }
-            }
-            Pair(stringResource(R.string.cancel), Modifier.weight(1f), onClick = dismiss)
         }
     }
 }
