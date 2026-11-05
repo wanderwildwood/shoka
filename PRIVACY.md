@@ -27,7 +27,7 @@ About opens web addresses in your browser (the source, the site and the donation
 <!-- shared-about privacy section -->
 ## Who we are
 
-Shelf is made by wander wildwood, an independent developer: one person, not a company. wander wildwood is the data controller for anything the app itself handles, and that is very little. Shelf keeps what you put in it on your phone, apart from what it sends to the Library of Congress and Open Library as described above, and sends nothing to the developer, so the developer holds no data about you.
+Shelf is made by wander wildwood, an independent developer: one person, not a company. wander wildwood is the data controller for anything the app itself handles, and that is very little. What you put in Shelf stays on your phone. The only things that go out are the lookups described above: a book's ISBN or LCCN, or the title and author you search for, sent to the Library of Congress and Open Library; and, only if you sign in, the catalog written to your own Nextcloud server. The developer receives nothing, so the developer holds no data about you.
 
 ## How to contact us
 
