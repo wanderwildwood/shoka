@@ -2,7 +2,6 @@ package com.wanderwildwood.shoka.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -55,14 +54,14 @@ fun SettingsScreen(lib: Library, onBack: () -> Unit, onAbout: () -> Unit) {
 
     BackHandler(onBack = onBack)
 
-    val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+    val save = rememberLauncherForActivityResult(FilesCreateDocument("text/csv")) { uri ->
         if (uri != null) scope.launch {
             val n = lib.export(uri)
             exported = if (n == null) context.getString(R.string.export_failed)
             else context.resources.getQuantityString(R.plurals.exported, n, n)
         }
     }
-    val load = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    val load = rememberLauncherForActivityResult(FilesOpenDocument(writable = false)) { uri ->
         if (uri != null) scope.launch {
             val r = lib.import(uri)
             imported = when {

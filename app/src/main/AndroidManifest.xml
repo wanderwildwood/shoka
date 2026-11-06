@@ -17,6 +17,8 @@
     <queries>
         <!-- Audio Reading, asked whether it has a book, for "Listen" on the book's page. -->
         <package android:name="com.wanderwildwood.mimidoku" />
+        <!-- Files, which answers "save" and "open" for the spreadsheet with its own screens. -->
+        <package android:name="com.wanderwildwood.tana" />
         <!-- Which browsers the phone has, so a link never goes to the WebView test shell. -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
