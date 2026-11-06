@@ -17,8 +17,8 @@ android {
         // Supernote's tablets, which run Android 11 (API 30).
         minSdk = 30
         targetSdk = 31
-        versionCode = 33
-        versionName = "0.1.32"
+        versionCode = 34
+        versionName = "0.1.33"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

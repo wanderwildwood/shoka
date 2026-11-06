@@ -65,7 +65,14 @@ look it up again, or delete it.
 ## Where the details come from
 
 The [Library of Congress catalog](https://www.loc.gov/) first, then
-[Open Library](https://openlibrary.org/) for anything it lacks. Neither needs an account.
+[Open Library](https://openlibrary.org/) for anything it lacks. When neither has a Dewey
+number for a book from Norway, Germany or Sweden (an ISBN starting 978-82, 978-3 or 978-91),
+Shelf asks that country's national library: the
+[Nasjonalbiblioteket](https://www.nb.no/), the
+[Deutsche Nationalbibliothek](https://www.dnb.de/) or [LIBRIS](https://libris.kb.se/).
+A book no catalog knows at all is asked of [Google Books](https://books.google.com/) for
+its title and author; Google's free allowance is shared by everyone and is sometimes used
+up for the day, and the book then waits in To fix. None of them needs an account.
 When neither gives a Dewey number, or only Open Library knows the ISBN, Shelf looks for
 another Library of Congress edition of the same title and author and takes its number
 (Dewey numbers the work, not the printing) and its form of the author's name. Whether a

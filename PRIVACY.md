@@ -8,7 +8,11 @@ as described here.
 **Looking a book up** sends its ISBN or LCCN, or the title and author you search for, to the
 Library of Congress (`lx2.loc.gov`) and to Open Library (`openlibrary.org`). The Library of
 Congress serves this catalog over plain HTTP only, so what is sent to it is not encrypted.
-Nothing else about you or your other books goes with it.
+When those two have no Dewey number for a book, its ISBN alone also goes to that country's
+national library: Norway's (`api.nb.no`) for an ISBN starting 978-82, Germany's
+(`services.dnb.de`) for 978-3, Sweden's LIBRIS (`libris.kb.se`) for 978-91. When no catalog
+knows the ISBN at all, it goes to Google Books (`www.googleapis.com`). Nothing else about you
+or your other books goes with it.
 
 **Nextcloud**, only if you sign in: the catalog is written to a folder on your own
 server. While the app is on screen it asks that server every 15 seconds whether the catalog
@@ -27,7 +31,7 @@ About opens web addresses in your browser (the source, the site and the donation
 <!-- shared-about privacy section -->
 ## Who we are
 
-Shelf is made by wander wildwood, an independent developer: one person, not a company. wander wildwood is the data controller for anything the app itself handles, and that is very little. What you put in Shelf stays on your phone. The only things that go out are the lookups described above: a book's ISBN or LCCN, or the title and author you search for, sent to the Library of Congress and Open Library; and, only if you sign in, the catalog written to your own Nextcloud server. The developer receives nothing, so the developer holds no data about you.
+Shelf is made by wander wildwood, an independent developer: one person, not a company. wander wildwood is the data controller for anything the app itself handles, and that is very little. What you put in Shelf stays on your phone. The only things that go out are the lookups described above: a book's ISBN or LCCN, or the title and author you search for, sent to the Library of Congress and Open Library, and an ISBN to the national libraries and Google Books as above; and, only if you sign in, the catalog written to your own Nextcloud server. The developer receives nothing, so the developer holds no data about you.
 
 ## How to contact us
 
@@ -49,6 +53,6 @@ Similar laws elsewhere, such as the CCPA in California, give you the right to kn
 
 Since Shelf keeps what it stores only on your phone, you can exercise most of these rights yourself: edit or delete a book in the app, save the catalog as a spreadsheet, clear the app's data in Android's settings, or uninstall the app, which deletes all of it. For anything you cannot do yourself, write to the address above.
 
-Shelf connects to the Library of Congress and Open Library. They are separate from this app and from its developer, and what they receive is covered by their own privacy policies; ask them about what they hold.
+Shelf connects to the Library of Congress, Open Library, the national libraries of Norway, Germany and Sweden, and Google Books. They are separate from this app and from its developer, and what they receive is covered by their own privacy policies; ask them about what they hold.
 If you point Shelf at a server of your own, what that server keeps is yours to manage.
 <!-- /shared-about privacy section -->

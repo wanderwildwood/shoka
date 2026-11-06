@@ -3,6 +3,7 @@ package com.wanderwildwood.shoka
 import android.util.Xml
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONException
 import org.json.JSONObject
 import org.xmlpull.v1.XmlPullParser
 import java.io.IOException
@@ -37,12 +38,18 @@ sealed interface Answer {
 /**
  * The Library of Congress catalogue first, for the Dewey number in its 082 field and its own
  * word on whether a book is fiction; Open Library after it, for books LC never catalogued
- * and for the gaps; then another LC edition of the same work when there is still no Dewey
- * number. No account and no key for any of it.
+ * and for the gaps; then, for a book from Norway, Germany or Sweden that still has no Dewey
+ * number, that country's national library; then Google Books for a book no one else knows;
+ * then another LC edition of the same work when there is still no Dewey number. No account
+ * and no key for any of it.
  */
 object Lookup {
 
     private const val LOC = "http://lx2.loc.gov:210/lcdb"
+    private const val LOC_NAME = "Library of Congress"
+    private const val NB_NAME = "Nasjonalbiblioteket"
+    private const val DNB_NAME = "Deutsche Nationalbibliothek"
+    private const val LIBRIS_NAME = "LIBRIS"
     private const val AGENT = "Shelf/0.1 (personal book catalogue; Android)"
     const val SEARCH_MAX = 10
     private val initialStop = Regex("""(^|[\s.])\p{L}\.$""")
@@ -66,6 +73,18 @@ object Lookup {
             null
         }
         var merged = merge(loc, ol)?.copy(isbn = isbn13)
+        // A national library knows its own country's books, Dewey number and all, where the
+        // two above often know nothing of them. One that fails or is busy is passed over.
+        if (merged == null || merged!!.ddc.isEmpty()) {
+            Match.nationalLibrary(isbn13)?.let { which ->
+                quietly { national(which, isbn13) }?.let { merged = fill(merged, it.copy(isbn = isbn13)) }
+            }
+        }
+        // Google Books last, and only for title and author: it gives no call number, and its
+        // keyless allowance is shared by everyone and is often used up for the day.
+        if (merged == null) {
+            merged = quietly { googleBooks(isbn13) }?.copy(isbn = isbn13)
+        }
         // Many books have no Dewey number on their own record -- often no LoC record at all --
         // but another edition of the same work does, and Dewey numbers the work. Asked too
         // when only Open Library knew the ISBN, for LoC's form of the author's name.
@@ -123,6 +142,28 @@ object Lookup {
         return same.firstOrNull { it.ddc.isNotEmpty() } ?: same.firstOrNull()
     }
 
+    /** A catalog asked only for what the first ones lacked: null for any failure, never "offline". */
+    private fun <T> quietly(block: () -> T): T? = try {
+        block()
+    } catch (e: Exception) {
+        null
+    }
+
+    /** [extra]'s fields where [first] has none; [extra] alone when there is no [first]. */
+    private fun fill(first: Found?, extra: Found): Found {
+        if (first == null) return extra
+        return first.copy(
+            title = first.title.ifEmpty { extra.title },
+            author = first.author.ifEmpty { extra.author },
+            year = first.year.ifEmpty { extra.year },
+            lc = first.lc.ifEmpty { extra.lc },
+            ddc = first.ddc.ifEmpty { extra.ddc },
+            fiction = first.fiction ?: extra.fiction,
+            genre = first.genre.ifEmpty { extra.genre },
+            source = if (first.ddc.isEmpty() && extra.ddc.isNotEmpty()) "${first.source} + ${extra.source}" else first.source,
+        )
+    }
+
     private fun merge(loc: Found?, ol: Found?): Found? {
         if (loc == null) return ol
         if (ol == null) return loc
@@ -160,10 +201,10 @@ object Lookup {
     private fun sru(query: String, max: Int): List<Found> {
         val url = "$LOC?version=1.1&operation=searchRetrieve&recordSchema=marcxml" +
             "&maximumRecords=$max&query=" + URLEncoder.encode(Match.fold(query), "UTF-8")
-        return get(url).use(::parseMarc)
+        return get(url).use { parseMarc(it) }
     }
 
-    private fun parseMarc(input: InputStream): List<Found> {
+    private fun parseMarc(input: InputStream, source: String = LOC_NAME): List<Found> {
         val p = Xml.newPullParser()
         p.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
         p.setInput(input, "UTF-8")
@@ -198,7 +239,7 @@ object Lookup {
                         sub = null
                     }
                     "record" -> {
-                        fields?.let { out += fromMarc(it) }
+                        fields?.let { out += fromMarc(it, source) }
                         fields = null
                     }
                 }
@@ -207,11 +248,11 @@ object Lookup {
         return out
     }
 
-    private fun fromMarc(f: Map<String, List<Map<Char, String>>>): Found {
+    private fun fromMarc(f: Map<String, List<Map<Char, String>>>, source: String): Found {
         fun first(tag: String, code: Char) = f[tag]?.firstOrNull()?.get(code)?.trim() ?: ""
         // MARC ends fields with punctuation for the next one; an initial's full stop stays.
         fun strip(s: String): String {
-            val t = s.trim().trimEnd('/', ':', ';', ',', ' ', '=').trim()
+            val t = Match.tidy(s).trimEnd('/', ':', ';', ',', ' ', '=').trim()
             return if (t.endsWith('.') && !initialStop.containsMatchIn(t)) t.dropLast(1).trim() else t
         }
 
@@ -219,8 +260,20 @@ object Lookup {
             .map(::strip).filter { it.isNotEmpty() }.joinToString(": ")
         val author = strip(
             first("100", 'a').ifEmpty { first("110", 'a') }.ifEmpty { first("111", 'a') }
+                // A book by several hands has no 100 field; the national libraries then name
+                // the first of them in 700 as "Surname, Given", which sorts better than 245 $c.
+                .ifEmpty { if (source == LOC_NAME) "" else first("700", 'a') }
                 .ifEmpty { first("245", 'c') }
         )
+        // The Deutsche Nationalbibliothek marks a novel with the subject group "B" and a
+        // children's book with "K" in its 082 and 084 fields, where Dewey gives no number.
+        val groups = if (source == DNB_NAME) {
+            listOf("082", "084").flatMap { t ->
+                f[t].orEmpty().filter { it['2']?.contains("sdnb") == true }.mapNotNull { it['a']?.trim() }
+            }
+        } else {
+            emptyList()
+        }
         val year = fourDigits.find(first("264", 'c').ifEmpty { first("260", 'c') })
             ?.value ?: ""
         val fixed = f["008"]?.firstOrNull()?.get(' ')
@@ -232,17 +285,46 @@ object Lookup {
             author = author,
             year = year,
             lc = CallNumber.cleanLc(lcRaw),
-            ddc = CallNumber.cleanDdc(first("082", 'a')),
+            // The DNB can give a subject group ("B") in its first 082 and the number in a later one.
+            ddc = f["082"].orEmpty().map { CallNumber.cleanDdc(it['a'] ?: "") }.firstOrNull { it.isNotEmpty() } ?: "",
             lccn = first("010", 'a').trim(),
             isbn = first("020", 'a').split(' ').firstOrNull()?.let { Isbn.normalize(it) } ?: "",
-            source = "Library of Congress",
-            fiction = Match.formIsFiction(fixed?.getOrNull(33)),
-            genre = Match.genre(
+            source = source,
+            fiction = Match.formIsFiction(fixed?.getOrNull(33)) ?: Match.groupsSayFiction(groups),
+            genre = if ("K" in groups) "children" else Match.genre(
                 listOf("650", "655").flatMap { t -> f[t].orEmpty().flatMap { listOfNotNull(it['a'], it['v'], it['x']) } },
                 // 008/22, the audience: a-c and j are children; d, adolescents, keep their genre.
                 juvenile = fixed?.getOrNull(22) in listOf('a', 'b', 'c', 'j'),
             ),
         )
+    }
+
+    // ---- National libraries, by the ISBN's country ----
+
+    private fun national(which: Match.National, isbn13: String): Found? = when (which) {
+        // The Norwegian catalogue finds the record by ISBN in JSON, and serves it as MARC.
+        Match.National.NORWAY -> {
+            val body = get("https://api.nb.no/catalog/v1/items?q=" + URLEncoder.encode("isbn:$isbn13", "UTF-8"))
+                .use { it.readBytes().toString(Charsets.UTF_8) }
+            Match.nbId(body)?.let { id ->
+                get("https://api.nb.no/catalog/v1/metadata/$id/marcxml").use { parseMarc(it, NB_NAME) }.firstOrNull()
+            }
+        }
+        Match.National.GERMANY -> get(
+            "https://services.dnb.de/sru/dnb?version=1.1&operation=searchRetrieve&recordSchema=MARC21-xml" +
+                "&maximumRecords=3&query=" + URLEncoder.encode("num=$isbn13", "UTF-8"),
+        ).use { parseMarc(it, DNB_NAME) }.maxByOrNull { if (it.ddc.isNotEmpty()) 1 else 0 }
+        Match.National.SWEDEN -> get(
+            "https://libris.kb.se/xsearch?format=marcxml&n=3&query=" + URLEncoder.encode("isbn:$isbn13", "UTF-8"),
+        ).use { parseMarc(it, LIBRIS_NAME) }.maxByOrNull { if (it.ddc.isNotEmpty()) 1 else 0 }
+    }
+
+    // ---- Google Books, title and author only ----
+
+    private fun googleBooks(isbn13: String): Found? {
+        val url = "https://www.googleapis.com/books/v1/volumes?maxResults=1&q=" +
+            URLEncoder.encode("isbn:$isbn13", "UTF-8")
+        return Match.googleBooks(get(url).use { it.readBytes().toString(Charsets.UTF_8) })
     }
 
     // ---- Open Library ----
@@ -284,6 +366,56 @@ object Lookup {
 
 /** The plain rules behind a lookup, apart from the network so they can be tested. */
 object Match {
+    enum class National { NORWAY, GERMANY, SWEDEN }
+
+    /** The national library to ask about an ISBN-13, by its country prefix; null for the rest. */
+    fun nationalLibrary(isbn13: String): National? = when {
+        isbn13.startsWith("97882") -> National.NORWAY
+        isbn13.startsWith("9783") -> National.GERMANY
+        isbn13.startsWith("97891") -> National.SWEDEN
+        else -> null
+    }
+
+    /** The first record id in the Norwegian catalogue's search answer, or null. */
+    fun nbId(json: String): String? = try {
+        JSONObject(json).optJSONObject("_embedded")?.optJSONArray("items")?.optJSONObject(0)
+            ?.optString("id")?.takeIf { it.isNotBlank() }
+    } catch (e: JSONException) {
+        null
+    }
+
+    /** Google Books' first volume as title, author and year; null when it found none. */
+    fun googleBooks(json: String): Found? {
+        val v = try {
+            JSONObject(json).optJSONArray("items")?.optJSONObject(0)?.optJSONObject("volumeInfo")
+        } catch (e: JSONException) {
+            null
+        } ?: return null
+        val title = listOf(v.optString("title"), v.optString("subtitle"))
+            .filter { it.isNotBlank() }.joinToString(": ")
+        if (title.isEmpty()) return null
+        return Found(
+            title = title,
+            author = v.optJSONArray("authors")?.optString(0) ?: "",
+            year = year.find(v.optString("publishedDate"))?.value ?: "",
+            source = "Google Books",
+        )
+    }
+
+    private val year = Regex("""\d{4}""")
+
+    /** The DNB's subject groups: "B" is fiction. Anything else doesn't say. */
+    fun groupsSayFiction(groups: List<String>): Boolean? = if ("B" in groups) true else null
+
+    /**
+     * Catalog text as it should read: the DNB wraps a leading article in the control
+     * characters that tell sorting to skip it, and the Norwegian catalogue leaves two spaces
+     * after one ("En  klimabok"); both go.
+     */
+    fun tidy(s: String): String = s.replace(sortMarks, "").replace(spaces, " ").trim()
+
+    private val sortMarks = Regex("[\u0088\u0089\u0098\u009C]")
+    private val spaces = Regex("""\s+""")
     /** LoC's search finds "Marquez" and not "Márquez", so accents come off what is asked. */
     fun fold(s: String): String =
         Normalizer.normalize(s, Normalizer.Form.NFD).replace(marks, "")
