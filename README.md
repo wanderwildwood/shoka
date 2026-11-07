@@ -66,10 +66,14 @@ look it up again, or delete it.
 
 The [Library of Congress catalog](https://www.loc.gov/) first, then
 [Open Library](https://openlibrary.org/) for anything it lacks. When neither has a Dewey
-number for a book from Norway, Germany or Sweden (an ISBN starting 978-82, 978-3 or 978-91),
-Shelf asks that country's national library: the
+number for a book from Norway, Germany, Sweden, Finland, the Netherlands, France or Poland
+(an ISBN starting 978-82, 978-3, 978-91, 978-951 or 978-952, 978-90 or 978-94, 978-2 or
+979-10, or 978-83), Shelf asks that country's national catalog: the
 [Nasjonalbiblioteket](https://www.nb.no/), the
-[Deutsche Nationalbibliothek](https://www.dnb.de/) or [LIBRIS](https://libris.kb.se/).
+[Deutsche Nationalbibliothek](https://www.dnb.de/), [LIBRIS](https://libris.kb.se/),
+[Finna](https://www.finna.fi/), the [Koninklijke Bibliotheek](https://www.kb.nl/), the
+[Bibliothèque nationale de France](https://catalogue.bnf.fr/) or the
+[Biblioteka Narodowa](https://www.bn.org.pl/).
 A book no catalog knows at all is asked of [Google Books](https://books.google.com/) for
 its title and author; Google's free allowance is shared by everyone and is sometimes used
 up for the day, and the book then waits in To fix. None of them needs an account.

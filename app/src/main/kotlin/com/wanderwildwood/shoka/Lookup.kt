@@ -8,10 +8,14 @@ import org.json.JSONObject
 import org.xmlpull.v1.XmlPullParser
 import java.io.IOException
 import java.io.InputStream
+import java.io.StringReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.text.Normalizer
+import javax.xml.parsers.DocumentBuilderFactory
+import org.w3c.dom.Element
+import org.xml.sax.InputSource
 
 /** What a catalogue said about one book. Empty strings for what it didn't say. */
 data class Found(
@@ -38,8 +42,9 @@ sealed interface Answer {
 /**
  * The Library of Congress catalogue first, for the Dewey number in its 082 field and its own
  * word on whether a book is fiction; Open Library after it, for books LC never catalogued
- * and for the gaps; then, for a book from Norway, Germany or Sweden that still has no Dewey
- * number, that country's national library; then Google Books for a book no one else knows;
+ * and for the gaps; then, for a book from Norway, Germany, Sweden, Finland, the Netherlands,
+ * France or Poland that still has no Dewey number, that country's national catalog; then
+ * Google Books for a book no one else knows;
  * then another LC edition of the same work when there is still no Dewey number. No account
  * and no key for any of it.
  */
@@ -50,6 +55,8 @@ object Lookup {
     private const val NB_NAME = "Nasjonalbiblioteket"
     private const val DNB_NAME = "Deutsche Nationalbibliothek"
     private const val LIBRIS_NAME = "LIBRIS"
+    private const val BNF_NAME = "Bibliothèque nationale de France"
+    private const val BN_NAME = "Biblioteka Narodowa"
     private const val AGENT = "Shelf/0.1 (personal book catalogue; Android)"
     const val SEARCH_MAX = 10
     private val initialStop = Regex("""(^|[\s.])\p{L}\.$""")
@@ -74,7 +81,8 @@ object Lookup {
         }
         var merged = merge(loc, ol)?.copy(isbn = isbn13)
         // A national library knows its own country's books, Dewey number and all, where the
-        // two above often know nothing of them. One that fails or is busy is passed over.
+        // two above often know nothing of them. One that fails or is busy is passed over, and
+        // soon: it is asked with shorter timeouts than LoC, so a slow one doesn't hold the scan.
         if (merged == null || merged!!.ddc.isEmpty()) {
             Match.nationalLibrary(isbn13)?.let { which ->
                 quietly { national(which, isbn13) }?.let { merged = fill(merged, it.copy(isbn = isbn13)) }
@@ -184,10 +192,10 @@ object Lookup {
         )
     }
 
-    private fun get(url: String): InputStream {
+    private fun get(url: String, connect: Int = 10_000, read: Int = 20_000): InputStream {
         val c = URL(url).openConnection() as HttpURLConnection
-        c.connectTimeout = 10_000
-        c.readTimeout = 20_000
+        c.connectTimeout = connect
+        c.readTimeout = read
         c.setRequestProperty("User-Agent", AGENT)
         if (c.responseCode != 200) {
             c.disconnect()
@@ -248,7 +256,11 @@ object Lookup {
         return out
     }
 
-    private fun fromMarc(f: Map<String, List<Map<Char, String>>>, source: String): Found {
+    /** A catalog asked only for what the first ones lacked, read whole, with short timeouts. */
+    private fun spare(url: String): String =
+        get(url, connect = 6_000, read = 10_000).use { it.readBytes().toString(Charsets.UTF_8) }
+
+    internal fun fromMarc(f: Map<String, List<Map<Char, String>>>, source: String): Found {
         fun first(tag: String, code: Char) = f[tag]?.firstOrNull()?.get(code)?.trim() ?: ""
         // MARC ends fields with punctuation for the next one; an initial's full stop stays.
         fun strip(s: String): String {
@@ -304,19 +316,55 @@ object Lookup {
     private fun national(which: Match.National, isbn13: String): Found? = when (which) {
         // The Norwegian catalogue finds the record by ISBN in JSON, and serves it as MARC.
         Match.National.NORWAY -> {
-            val body = get("https://api.nb.no/catalog/v1/items?q=" + URLEncoder.encode("isbn:$isbn13", "UTF-8"))
-                .use { it.readBytes().toString(Charsets.UTF_8) }
+            val body = spare("https://api.nb.no/catalog/v1/items?q=" + URLEncoder.encode("isbn:$isbn13", "UTF-8"))
             Match.nbId(body)?.let { id ->
-                get("https://api.nb.no/catalog/v1/metadata/$id/marcxml").use { parseMarc(it, NB_NAME) }.firstOrNull()
+                get("https://api.nb.no/catalog/v1/metadata/$id/marcxml", 6_000, 10_000).use { parseMarc(it, NB_NAME) }.firstOrNull()
             }
         }
         Match.National.GERMANY -> get(
             "https://services.dnb.de/sru/dnb?version=1.1&operation=searchRetrieve&recordSchema=MARC21-xml" +
                 "&maximumRecords=3&query=" + URLEncoder.encode("num=$isbn13", "UTF-8"),
+            6_000, 10_000,
         ).use { parseMarc(it, DNB_NAME) }.maxByOrNull { if (it.ddc.isNotEmpty()) 1 else 0 }
         Match.National.SWEDEN -> get(
             "https://libris.kb.se/xsearch?format=marcxml&n=3&query=" + URLEncoder.encode("isbn:$isbn13", "UTF-8"),
+            6_000, 10_000,
         ).use { parseMarc(it, LIBRIS_NAME) }.maxByOrNull { if (it.ddc.isNotEmpty()) 1 else 0 }
+        // Finna, the National Library of Finland's search over the country's libraries. Its
+        // ISBN search also brings other editions of the work, so the parser keeps only a
+        // record that carries this ISBN.
+        Match.National.FINLAND -> Match.finna(
+            spare(
+                "https://api.finna.fi/v1/search?type=ISN&limit=5&field%5B%5D=title&field%5B%5D=isbns" +
+                    "&field%5B%5D=nonPresenterAuthors&field%5B%5D=year&field%5B%5D=classifications&lookfor=$isbn13",
+            ),
+            isbn13,
+        )
+        // The KB's catalog by SRU, in Dublin Core; an older book is filed under its ISBN-10.
+        Match.National.NETHERLANDS -> Match.kb(
+            spare(
+                "https://jsru.kb.nl/sru/sru?version=1.2&operation=searchRetrieve&x-collection=GGC" +
+                    "&recordSchema=dcx&maximumRecords=3&query=" +
+                    URLEncoder.encode(listOfNotNull(isbn13, Isbn.to10(isbn13)).joinToString(" or ") { "dc.identifier=$it" }, "UTF-8"),
+            ),
+        )
+        // The BnF's catalog by SRU, in UNIMARC, the French form of MARC.
+        Match.National.FRANCE -> Match.unimarc(
+            spare(
+                "https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve" +
+                    "&recordSchema=unimarcXchange&maximumRecords=3&query=" +
+                    URLEncoder.encode(listOfNotNull(isbn13, Isbn.to10(isbn13)).joinToString(" or ") { "bib.isbn all \"$it\"" }, "UTF-8"),
+            ),
+            BNF_NAME,
+        ).maxByOrNull { if (it.ddc.isNotEmpty()) 1 else 0 }
+        // The Biblioteka Narodowa's open data, MARC 21 written as JSON. Its ISBN search
+        // matches the form a record was filed under, so an older book is asked again by ISBN-10.
+        Match.National.POLAND -> {
+            fun ask(isbn: String) = Match.bnRecords(spare("https://data.bn.org.pl/api/institutions/bibs.json?limit=3&isbnIssn=$isbn"))
+            val records = ask(isbn13).ifEmpty { Isbn.to10(isbn13)?.let(::ask).orEmpty() }
+            records.map { fromMarc(it, BN_NAME) }.filter { it.title.isNotEmpty() }
+                .maxByOrNull { if (it.ddc.isNotEmpty()) 1 else 0 }
+        }
     }
 
     // ---- Google Books, title and author only ----
@@ -324,7 +372,7 @@ object Lookup {
     private fun googleBooks(isbn13: String): Found? {
         val url = "https://www.googleapis.com/books/v1/volumes?maxResults=1&q=" +
             URLEncoder.encode("isbn:$isbn13", "UTF-8")
-        return Match.googleBooks(get(url).use { it.readBytes().toString(Charsets.UTF_8) })
+        return Match.googleBooks(spare(url))
     }
 
     // ---- Open Library ----
@@ -366,14 +414,207 @@ object Lookup {
 
 /** The plain rules behind a lookup, apart from the network so they can be tested. */
 object Match {
-    enum class National { NORWAY, GERMANY, SWEDEN }
+    enum class National { NORWAY, GERMANY, SWEDEN, FINLAND, NETHERLANDS, FRANCE, POLAND }
 
-    /** The national library to ask about an ISBN-13, by its country prefix; null for the rest. */
+    /**
+     * The national library to ask about an ISBN-13, by its country prefix; null for the rest.
+     * 978-2 and 979-10 are French-speaking books (Belgium's and Switzerland's too), 978-90
+     * and 978-94 Dutch-speaking ones, 978-951 and 978-952 Finland's.
+     */
     fun nationalLibrary(isbn13: String): National? = when {
         isbn13.startsWith("97882") -> National.NORWAY
         isbn13.startsWith("9783") -> National.GERMANY
         isbn13.startsWith("97891") -> National.SWEDEN
+        isbn13.startsWith("978951") || isbn13.startsWith("978952") -> National.FINLAND
+        isbn13.startsWith("97890") || isbn13.startsWith("97894") -> National.NETHERLANDS
+        isbn13.startsWith("9782") || isbn13.startsWith("97910") -> National.FRANCE
+        isbn13.startsWith("97883") -> National.POLAND
         else -> null
+    }
+
+    /**
+     * Finna's first record that carries [isbn13] itself (its ISBN search also brings other
+     * editions of the work), or null. Finnish libraries class by YKL, whose 84 is fiction.
+     */
+    fun finna(json: String, isbn13: String): Found? {
+        val records = try {
+            JSONObject(json).optJSONArray("records")
+        } catch (e: JSONException) {
+            null
+        } ?: return null
+        for (i in 0 until records.length()) {
+            val r = records.optJSONObject(i) ?: continue
+            val isbns = r.optJSONArray("isbns") ?: continue
+            val carries = (0 until isbns.length()).any { j ->
+                Isbn.normalize(isbns.optString(j).trim().substringBefore(' ')) == isbn13
+            }
+            val title = tidy(r.optString("title")).trimEnd('/', ':', ';', ' ')
+            if (!carries || title.isEmpty()) continue
+            val authors = r.optJSONArray("nonPresenterAuthors")
+            val author = authors?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) } }
+                ?.let { a -> a.firstOrNull { it.optString("type") == "Personal Name" } ?: a.firstOrNull() }
+                ?.optString("name") ?: ""
+            val ykl = r.optJSONObject("classifications")?.optJSONArray("ykl")
+            val fiction = ykl?.let { a -> (0 until a.length()).any { a.optString(it).let { c -> c == "84" || c.startsWith("84.") } } }
+            return Found(
+                title = title,
+                author = tidy(author),
+                year = year.find(r.optString("year"))?.value ?: "",
+                source = "Finna",
+                fiction = if (fiction == true) true else null,
+            )
+        }
+        return null
+    }
+
+    /**
+     * The Koninklijke Bibliotheek's answer in Dublin Core: the first printed book in it, or
+     * its first record, as title, author and year. Its "Fictie" document type says fiction.
+     */
+    fun kb(xml: String): Found? {
+        val records = elements(xml).filter { local(it) == "dc" }.map { dc ->
+            children(dc).groupBy({ local(it) }, { it })
+        }
+        fun texts(r: Map<String, List<Element>>, name: String) = r[name].orEmpty().map { tidy(it.textContent) }.filter { it.isNotEmpty() }
+        val r = records.firstOrNull { r -> texts(r, "title").isNotEmpty() && "online resource" !in texts(r, "type") }
+            ?: records.firstOrNull { texts(it, "title").isNotEmpty() }
+            ?: return null
+        val doctypes = r["subject"].orEmpty().filter { it.getAttribute("xsi:type") == "dcx:doctype" }.map { it.textContent.trim() }
+        return Found(
+            title = texts(r, "title").first().trimEnd('/', ':', ';', ' '),
+            author = texts(r, "creator").firstOrNull() ?: texts(r, "contributor").firstOrNull() ?: "",
+            year = texts(r, "date").firstNotNullOfOrNull { year.find(it)?.value } ?: "",
+            source = "Koninklijke Bibliotheek",
+            fiction = if (doctypes.any { it.equals("Fictie", true) }) true else null,
+        )
+    }
+
+    /**
+     * UNIMARC records, as the BnF gives them: 200 the title, 700 the author, 210 or 214 the
+     * year, 676 the Dewey number. 105 position 11 is the literary form, and 100 position 17
+     * the readers a book is for.
+     */
+    fun unimarc(xml: String, source: String): List<Found> = marcRecords(xml).map { f ->
+        fun first(tag: String, code: Char) = tidy(f[tag]?.firstOrNull()?.get(code) ?: "")
+        fun name(tag: String) = listOf(first(tag, 'a'), first(tag, 'b')).filter { it.isNotEmpty() }.joinToString(", ")
+        // 200 $e is other title information: a real subtitle, or only the form ("roman").
+        val other = first("200", 'e')
+        val formOnly = other.lowercase() in frenchForms
+        val title = listOf(first("200", 'a'), if (formOnly) "" else other)
+            .map { it.trimEnd('/', ':', ';', ',', ' ', '=') }.filter { it.isNotEmpty() }.joinToString(": ")
+        val coded = f["100"]?.firstOrNull()?.get('a') ?: ""
+        val form = f["105"]?.firstOrNull()?.get('a')?.getOrNull(11)
+        Found(
+            title = title,
+            author = name("700").ifEmpty { name("701") }.ifEmpty { first("710", 'a') }.ifEmpty { first("200", 'f') },
+            year = year.find(first("210", 'd').ifEmpty { first("214", 'd') })?.value
+                ?: coded.substring(9.coerceAtMost(coded.length), 13.coerceAtMost(coded.length)).takeIf { it.length == 4 && it.all(Char::isDigit) }
+                ?: "",
+            ddc = f["676"].orEmpty().map { CallNumber.cleanDdc(it['a'] ?: "") }.firstOrNull { it.isNotEmpty() } ?: "",
+            source = source,
+            fiction = unimarcFiction(form) ?: if (other.lowercase().let { it == "roman" || it == "nouvelles" || it.startsWith("roman ") }) true else null,
+            genre = if (coded.getOrNull(17) in listOf('a', 'b', 'c', 'd')) "children" else "",
+        )
+    }
+
+    /**
+     * UNIMARC 105 position 11, the literary form: a fiction, f short stories; b drama,
+     * c essays, e letters, g poetry, h speeches, i libretti and y "not literature" are not
+     * fiction; d (humor), z (several) and the rest don't say.
+     */
+    fun unimarcFiction(form: Char?): Boolean? = when (form) {
+        'a', 'f' -> true
+        'b', 'c', 'e', 'g', 'h', 'i', 'y' -> false
+        else -> null
+    }
+
+    /** Words a French catalog gives as the "subtitle" that only name the form. */
+    private val frenchForms = setOf(
+        "roman", "romans", "nouvelle", "nouvelles", "récit", "récits", "conte", "contes", "essai", "essais",
+        "poèmes", "poésie", "théâtre", "roman policier", "roman graphique", "bande dessinée", "témoignage",
+    )
+
+    /** The Biblioteka Narodowa's records: MARC 21 written as JSON, read into MARC fields. */
+    fun bnRecords(json: String): List<Map<String, List<Map<Char, String>>>> {
+        val bibs = try {
+            JSONObject(json).optJSONArray("bibs")
+        } catch (e: JSONException) {
+            null
+        } ?: return emptyList()
+        return (0 until bibs.length()).mapNotNull { bibs.optJSONObject(it)?.optJSONObject("marc")?.optJSONArray("fields") }
+            .map { fields ->
+                val out = mutableMapOf<String, MutableList<Map<Char, String>>>()
+                for (i in 0 until fields.length()) {
+                    val field = fields.optJSONObject(i) ?: continue
+                    for (tag in field.keys()) {
+                        val v = field.opt(tag)
+                        val sub = when (v) {
+                            // 008 is fixed-length, read by position: kept whole under a blank code.
+                            is String -> if (tag == "008") mapOf(' ' to v) else continue
+                            is JSONObject -> {
+                                val subs = v.optJSONArray("subfields") ?: continue
+                                val m = mutableMapOf<Char, String>()
+                                for (j in 0 until subs.length()) {
+                                    val s = subs.optJSONObject(j) ?: continue
+                                    for (code in s.keys()) {
+                                        code.firstOrNull()?.let { c -> if (c !in m) m[c] = s.optString(code) }
+                                    }
+                                }
+                                m
+                            }
+                            else -> continue
+                        }
+                        out.getOrPut(tag) { mutableListOf() }.add(sub)
+                    }
+                }
+                out
+            }
+    }
+
+    /** MARC-shaped records in XML, whatever their prefix: tag to fields, code to text. */
+    fun marcRecords(xml: String): List<Map<String, List<Map<Char, String>>>> =
+        elements(xml).filter { e -> local(e) == "record" && children(e).any { local(it) == "datafield" } }.map { record ->
+            val out = mutableMapOf<String, MutableList<Map<Char, String>>>()
+            for (field in children(record)) {
+                val tag = field.getAttribute("tag")
+                when (local(field)) {
+                    "controlfield" -> out.getOrPut(tag) { mutableListOf() }.add(mapOf(' ' to field.textContent))
+                    "datafield" -> {
+                        val m = mutableMapOf<Char, String>()
+                        for (s in children(field)) {
+                            val c = s.getAttribute("code").firstOrNull() ?: continue
+                            if (c !in m) m[c] = s.textContent
+                        }
+                        out.getOrPut(tag) { mutableListOf() }.add(m)
+                    }
+                }
+            }
+            out
+        }
+
+    private fun local(e: Element) = e.nodeName.substringAfter(':')
+
+    private fun children(e: Element): List<Element> {
+        val n = e.childNodes
+        return (0 until n.length).mapNotNull { n.item(it) as? Element }
+    }
+
+    /** Every element of an XML answer, in document order; none when it isn't XML. */
+    private fun elements(xml: String): List<Element> = try {
+        val factory = DocumentBuilderFactory.newInstance()
+        factory.isNamespaceAware = false
+        factory.isExpandEntityReferences = false
+        // An answer has no business declaring a DTD; where the parser can refuse one, it does.
+        try {
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        } catch (e: Exception) {
+            // Android's parser knows no such feature, and reads no DTD anyway.
+        }
+        val doc = factory.newDocumentBuilder().parse(InputSource(StringReader(xml)))
+        val all = doc.getElementsByTagName("*")
+        (0 until all.length).mapNotNull { all.item(it) as? Element }
+    } catch (e: Exception) {
+        emptyList()
     }
 
     /** The first record id in the Norwegian catalogue's search answer, or null. */
