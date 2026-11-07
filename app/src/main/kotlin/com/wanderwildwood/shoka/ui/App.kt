@@ -361,7 +361,7 @@ private fun ScanScreen(
             DottedRule()
         }
         if (recent.isEmpty()) Small(stringResource(R.string.recent_empty), Modifier.padding(16.dp), maxLines = 3)
-        PagedColumn(Modifier.weight(1f).fillMaxWidth(), state = recentList, onPullAtTop = if (pull.available) pull::pull else null) {
+        PagedColumn(Modifier.weight(1f).fillMaxWidth(), state = recentList, onPullAtTop = if (pull.available) pull::pull else null, showCutRow = true) {
             items(recent.size, key = { recent[it].id }) { i ->
                 val b = recent[i]
                 Column(Modifier.fillMaxWidth().clickable { open(b.id) }.padding(horizontal = 16.dp, vertical = 6.dp)) {
@@ -585,7 +585,7 @@ private fun ShelfScreen(lib: Library, open: (Long) -> Unit) {
             shown.isEmpty() -> TextMMD(text = stringResource(R.string.attention_none), modifier = Modifier.padding(16.dp))
         }
 
-        PagedColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), state = list, onPullAtTop = if (pull.available) pull::pull else null) {
+        PagedColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), state = list, onPullAtTop = if (pull.available) pull::pull else null, showCutRow = true) {
             items(shown.size, key = { shown[it].book.id }) { i ->
                 val p = shown[i]
                 if (system == CallNumber.System.SECTIONS) {
