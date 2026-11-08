@@ -2,6 +2,7 @@ package com.wanderwildwood.shoka
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CatalogsTest {
@@ -17,10 +18,15 @@ class CatalogsTest {
         // 979-10 is France too.
         assertEquals(Match.National.FRANCE, Match.nationalLibrary("9791000000001"))
         assertEquals(Match.National.POLAND, Match.nationalLibrary("9788308039861"))
+        assertEquals(Match.National.PORTUGAL, Match.nationalLibrary("9789720051080"))
+        assertEquals(Match.National.PORTUGAL, Match.nationalLibrary("9789898000001"))
         // 978-87 is Denmark, 978-0 English, 978-953 Croatia: no national library of theirs is asked.
         assertNull(Match.nationalLibrary("9788700000001"))
         assertNull(Match.nationalLibrary("9780000000002"))
         assertNull(Match.nationalLibrary("9789530000001"))
+        // 978-80 is Czech and Slovak, 979-8 the United States: none either.
+        assertNull(Match.nationalLibrary("9788089312245"))
+        assertNull(Match.nationalLibrary("9798581912041"))
     }
 
     private fun sample(name: String) =
@@ -113,6 +119,61 @@ class CatalogsTest {
         assertEquals("abc123", Match.nbId(json))
         assertNull(Match.nbId("""{"page":{"totalElements":0}}"""))
         assertNull(Match.nbId("not json"))
+    }
+
+    @Test fun norwegianOlderBookIsFoundByIsbn10() {
+        // Before 2007 the record held only the ISBN-10: asked by ISBN-13 the catalogue has
+        // nothing, asked by ISBN-10 it has the book.
+        assertNull(Match.nbId(sample("nb-sprakvett-isbn13.json")))
+        assertEquals("4eec22cd36d8e478fa8a540e2f8e5757", Match.nbId(sample("nb-sprakvett-isbn10.json")))
+        assertEquals("8257312282", Isbn.to10("9788257312282"))
+        // And its MARC record reads as the book, Dewey number and all.
+        val f = Lookup.fromMarc(Match.marcRecords(sample("nb-sprakvett.xml")).single(), "Nasjonalbiblioteket")
+        assertEquals("Språkvett: skriveregler, grammatikk og språklige råd fra a til å", f.title)
+        assertEquals("Gundersen, Dag", f.author)
+        assertEquals("2001", f.year)
+        assertEquals("439.828", f.ddc)
+    }
+
+    @Test fun finnaKeepsARecordFiledUnderIsbn10() {
+        // Finna's records of older books carry only the ISBN-10; asked for the ISBN-13 they still count.
+        val f = Match.finna(sample("finna-tuntematon-isbn10.json"), "9789510913994")!!
+        assertTrue(f.title.startsWith("Tuntematon sotilas"))
+        assertEquals("Linna, Väinö", f.author)
+        assertEquals("1983", f.year)
+        assertEquals(true, f.fiction)
+    }
+
+    @Test fun porbaseUnimarc() {
+        val f = Match.porbase(sample("porbase-dicionario.xml")).single()
+        assertEquals("Dicionário básico de inglês-português, português-inglês", f.title)
+        // A publisher's dictionary names no author; UDC in 675 is no Dewey number.
+        assertEquals("", f.author)
+        assertEquals("2010", f.year)
+        assertEquals("", f.ddc)
+        assertEquals("PORBASE", f.source)
+        // "romance" only names the form, and says it is a novel.
+        val g = Match.porbase(sample("porbase-cegueira.xml")).single()
+        assertEquals("Ensaio sobre a cegueira", g.title)
+        assertEquals("Saramago, José", g.author)
+        assertEquals("1999", g.year)
+        assertEquals(true, g.fiction)
+    }
+
+    @Test fun porbaseNoSuchRecord() {
+        // "Registo inexistente" is a miss, not a book and not a crash.
+        assertEquals(emptyList<Found>(), Match.porbase(sample("porbase-none.xml")))
+        assertEquals(emptyList<Found>(), Match.porbase("busy"))
+    }
+
+    @Test fun k10plusMarcXml() {
+        val f = Lookup.k10plus(sample("k10plus-collocation.xml"))!!
+        assertEquals("Ukrainian-English collocation dictionary: for students of Ukrainian", f.title)
+        assertEquals("Shevchuk, Yuri", f.author)
+        assertEquals("2024", f.year)
+        assertEquals("K10plus", f.source)
+        assertNull(Lookup.k10plus(sample("k10plus-none.xml")))
+        assertNull(Lookup.k10plus("not xml"))
     }
 
     @Test fun googleBooksTitleAuthorYear() {

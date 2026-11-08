@@ -43,7 +43,8 @@ sealed interface Answer {
  * The Library of Congress catalogue first, for the Dewey number in its 082 field and its own
  * word on whether a book is fiction; Open Library after it, for books LC never catalogued
  * and for the gaps; then, for a book from Norway, Germany, Sweden, Finland, the Netherlands,
- * France or Poland that still has no Dewey number, that country's national catalog; then
+ * France, Poland or Portugal that still has no Dewey number, that country's national catalog;
+ * then K10plus, the German libraries' union catalog, which holds books from everywhere, and
  * Google Books for a book no one else knows;
  * then another LC edition of the same work when there is still no Dewey number. No account
  * and no key for any of it.
@@ -57,6 +58,7 @@ object Lookup {
     private const val LIBRIS_NAME = "LIBRIS"
     private const val BNF_NAME = "Bibliothèque nationale de France"
     private const val BN_NAME = "Biblioteka Narodowa"
+    private const val K10PLUS_NAME = "K10plus"
     private const val AGENT = "Shelf/0.1 (personal book catalogue; Android)"
     const val SEARCH_MAX = 10
     private val initialStop = Regex("""(^|[\s.])\p{L}\.$""")
@@ -87,6 +89,11 @@ object Lookup {
             Match.nationalLibrary(isbn13)?.let { which ->
                 quietly { national(which, isbn13) }?.let { merged = fill(merged, it.copy(isbn = isbn13)) }
             }
+        }
+        // K10plus, the union catalog of German libraries, holds books from every country, and
+        // its ISBN search finds a record filed under the ISBN-10 too.
+        if (merged == null) {
+            merged = quietly { askK10plus(isbn13) }?.copy(isbn = isbn13)
         }
         // Google Books last, and only for title and author: it gives no call number, and its
         // keyless allowance is shared by everyone and is often used up for the day.
@@ -314,10 +321,12 @@ object Lookup {
     // ---- National libraries, by the ISBN's country ----
 
     private fun national(which: Match.National, isbn13: String): Found? = when (which) {
-        // The Norwegian catalogue finds the record by ISBN in JSON, and serves it as MARC.
+        // The Norwegian catalogue finds the record by ISBN in JSON, and serves it as MARC. A
+        // record from before 2007 carries only the ISBN-10, and its search doesn't turn one
+        // form into the other, so a book it doesn't know by ISBN-13 is asked again by ISBN-10.
         Match.National.NORWAY -> {
-            val body = spare("https://api.nb.no/catalog/v1/items?q=" + URLEncoder.encode("isbn:$isbn13", "UTF-8"))
-            Match.nbId(body)?.let { id ->
+            fun ask(isbn: String) = Match.nbId(spare("https://api.nb.no/catalog/v1/items?q=" + URLEncoder.encode("isbn:$isbn", "UTF-8")))
+            (ask(isbn13) ?: Isbn.to10(isbn13)?.let(::ask))?.let { id ->
                 get("https://api.nb.no/catalog/v1/metadata/$id/marcxml", 6_000, 10_000).use { parseMarc(it, NB_NAME) }.firstOrNull()
             }
         }
@@ -365,7 +374,29 @@ object Lookup {
             records.map { fromMarc(it, BN_NAME) }.filter { it.title.isNotEmpty() }
                 .maxByOrNull { if (it.ddc.isNotEmpty()) 1 else 0 }
         }
+        // PORBASE, the Portuguese union catalog the Biblioteca Nacional de Portugal keeps, by
+        // its URN service: one record by ISBN, in UNIMARC. It matches the form a record was
+        // filed under, so an older book is asked again by ISBN-10.
+        Match.National.PORTUGAL -> {
+            fun ask(isbn: String) = Match.porbase(spare("https://urn.porbase.org/isbn/unimarc/marcxchange?id=$isbn"))
+            ask(isbn13).ifEmpty { Isbn.to10(isbn13)?.let(::ask).orEmpty() }
+                .maxByOrNull { if (it.ddc.isNotEmpty()) 1 else 0 }
+        }
     }
+
+    // ---- K10plus, the German union catalog, by SRU in MARCXML ----
+
+    private fun askK10plus(isbn13: String): Found? = k10plus(
+        spare(
+            "https://sru.k10plus.de/opac-de-627?version=1.1&operation=searchRetrieve&recordSchema=marcxml" +
+                "&maximumRecords=3&query=" + URLEncoder.encode("pica.isb=$isbn13", "UTF-8"),
+        ),
+    )
+
+    /** K10plus's answer: the record with a Dewey number if one has it, else the first; null for none. */
+    internal fun k10plus(xml: String): Found? =
+        Match.marcRecords(xml).map { fromMarc(it, K10PLUS_NAME) }.filter { it.title.isNotEmpty() }
+            .maxByOrNull { if (it.ddc.isNotEmpty()) 1 else 0 }
 
     // ---- Google Books, title and author only ----
 
@@ -414,12 +445,13 @@ object Lookup {
 
 /** The plain rules behind a lookup, apart from the network so they can be tested. */
 object Match {
-    enum class National { NORWAY, GERMANY, SWEDEN, FINLAND, NETHERLANDS, FRANCE, POLAND }
+    enum class National { NORWAY, GERMANY, SWEDEN, FINLAND, NETHERLANDS, FRANCE, POLAND, PORTUGAL }
 
     /**
      * The national library to ask about an ISBN-13, by its country prefix; null for the rest.
      * 978-2 and 979-10 are French-speaking books (Belgium's and Switzerland's too), 978-90
-     * and 978-94 Dutch-speaking ones, 978-951 and 978-952 Finland's.
+     * and 978-94 Dutch-speaking ones, 978-951 and 978-952 Finland's, 978-972 and 978-989
+     * Portugal's.
      */
     fun nationalLibrary(isbn13: String): National? = when {
         isbn13.startsWith("97882") -> National.NORWAY
@@ -429,6 +461,7 @@ object Match {
         isbn13.startsWith("97890") || isbn13.startsWith("97894") -> National.NETHERLANDS
         isbn13.startsWith("9782") || isbn13.startsWith("97910") -> National.FRANCE
         isbn13.startsWith("97883") -> National.POLAND
+        isbn13.startsWith("978972") || isbn13.startsWith("978989") -> National.PORTUGAL
         else -> null
     }
 
@@ -499,7 +532,7 @@ object Match {
         fun name(tag: String) = listOf(first(tag, 'a'), first(tag, 'b')).filter { it.isNotEmpty() }.joinToString(", ")
         // 200 $e is other title information: a real subtitle, or only the form ("roman").
         val other = first("200", 'e')
-        val formOnly = other.lowercase() in frenchForms
+        val formOnly = other.lowercase() in formWords
         val title = listOf(first("200", 'a'), if (formOnly) "" else other)
             .map { it.trimEnd('/', ':', ';', ',', ' ', '=') }.filter { it.isNotEmpty() }.joinToString(": ")
         val coded = f["100"]?.firstOrNull()?.get('a') ?: ""
@@ -512,7 +545,7 @@ object Match {
                 ?: "",
             ddc = f["676"].orEmpty().map { CallNumber.cleanDdc(it['a'] ?: "") }.firstOrNull { it.isNotEmpty() } ?: "",
             source = source,
-            fiction = unimarcFiction(form) ?: if (other.lowercase().let { it == "roman" || it == "nouvelles" || it.startsWith("roman ") }) true else null,
+            fiction = unimarcFiction(form) ?: if (other.lowercase() in fictionWords || other.lowercase().startsWith("roman ")) true else null,
             genre = if (coded.getOrNull(17) in listOf('a', 'b', 'c', 'd')) "children" else "",
         )
     }
@@ -528,10 +561,22 @@ object Match {
         else -> null
     }
 
-    /** Words a French catalog gives as the "subtitle" that only name the form. */
-    private val frenchForms = setOf(
+    /**
+     * PORBASE's answer to an ISBN: its records, or none for "Registo inexistente" (no such
+     * record), which comes back as a small urn-response instead of a record.
+     */
+    fun porbase(xml: String): List<Found> =
+        if (xml.contains("<urn-response")) emptyList() else unimarc(xml, "PORBASE")
+
+    /** Form words in 200 $e that say a book is a novel or stories (French and Portuguese). */
+    private val fictionWords = setOf("roman", "nouvelles", "romance", "contos", "novela")
+
+    /** Words a French or Portuguese catalog gives as the "subtitle" that only name the form. */
+    private val formWords = setOf(
         "roman", "romans", "nouvelle", "nouvelles", "récit", "récits", "conte", "contes", "essai", "essais",
         "poèmes", "poésie", "théâtre", "roman policier", "roman graphique", "bande dessinée", "témoignage",
+        "romance", "romances", "conto", "contos", "novela", "novelas", "poesia", "poemas", "teatro", "ensaio", "ensaios",
+        "crónica", "crónicas",
     )
 
     /** The Biblioteka Narodowa's records: MARC 21 written as JSON, read into MARC fields. */

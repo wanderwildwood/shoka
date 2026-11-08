@@ -13,8 +13,9 @@ national library: Norway's (`api.nb.no`) for an ISBN starting 978-82, Germany's
 (`services.dnb.de`) for 978-3, Sweden's LIBRIS (`libris.kb.se`) for 978-91, Finland's
 Finna (`api.finna.fi`) for 978-951 and 978-952, the Netherlands' (`jsru.kb.nl`) for 978-90
 and 978-94, France's (`catalogue.bnf.fr`) for 978-2 and 979-10, Poland's (`data.bn.org.pl`)
-for 978-83. When no catalog
-knows the ISBN at all, it goes to Google Books (`www.googleapis.com`). Nothing else about you
+for 978-83, Portugal's PORBASE (`urn.porbase.org`) for 978-972 and 978-989. When none of
+these knows the ISBN at all, it goes to K10plus, the German libraries' union catalog
+(`sru.k10plus.de`), and then to Google Books (`www.googleapis.com`). Nothing else about you
 or your other books goes with it.
 
 **Nextcloud**, only if you sign in: the catalog is written to a folder on your own

@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zs:searchRetrieveResponse xmlns:zs="http://www.loc.gov/zing/srw/"><zs:version>1.1</zs:version><zs:numberOfRecords>1</zs:numberOfRecords><zs:records><zs:record><zs:recordSchema>marcxml</zs:recordSchema><zs:recordPacking>xml</zs:recordPacking><zs:recordData><record xmlns="http://www.loc.gov/MARC21/slim">
+  <leader>     cam a22      c 4500</leader>
+  <controlfield tag="001">193658185X</controlfield>
+  <controlfield tag="003">DE-627</controlfield>
+  <controlfield tag="005">20251104134846.0</controlfield>
+  <controlfield tag="007">tu</controlfield>
+  <controlfield tag="008">250923s2024    xxu|||||      00| ||eng c</controlfield>
+  <datafield tag="020" ind1=" " ind2=" ">
+    <subfield code="a">9780781814492</subfield>
+    <subfield code="9">978-0-7818-1449-2</subfield>
+  </datafield>
+  <datafield tag="035" ind1=" " ind2=" ">
+    <subfield code="a">(DE-627)193658185X</subfield>
+  </datafield>
+  <datafield tag="035" ind1=" " ind2=" ">
+    <subfield code="a">(DE-599)KXP193658185X</subfield>
+  </datafield>
+  <datafield tag="040" ind1=" " ind2=" ">
+    <subfield code="a">DE-627</subfield>
+    <subfield code="b">ger</subfield>
+    <subfield code="c">DE-627</subfield>
+    <subfield code="e">rda</subfield>
+  </datafield>
+  <datafield tag="041" ind1=" " ind2=" ">
+    <subfield code="a">eng</subfield>
+    <subfield code="a">ukr</subfield>
+  </datafield>
+  <datafield tag="044" ind1=" " ind2=" ">
+    <subfield code="c">XD-US</subfield>
+  </datafield>
+  <datafield tag="084" ind1=" " ind2=" ">
+    <subfield code="a">KC 1821</subfield>
+    <subfield code="2">rvk</subfield>
+    <subfield code="0">(DE-625)rvk/71558:</subfield>
+  </datafield>
+  <datafield tag="084" ind1=" " ind2=" ">
+    <subfield code="a">18.54</subfield>
+    <subfield code="2">bkl</subfield>
+  </datafield>
+  <datafield tag="100" ind1="1" ind2=" ">
+    <subfield code="a">Shevchuk, Yuri</subfield>
+    <subfield code="d">1961-</subfield>
+    <subfield code="e">VerfasserIn</subfield>
+    <subfield code="0">(DE-588)1101953322</subfield>
+    <subfield code="0">(DE-627)85985566X</subfield>
+    <subfield code="0">(DE-576)470022957</subfield>
+    <subfield code="4">aut</subfield>
+  </datafield>
+  <datafield tag="245" ind1="1" ind2="0">
+    <subfield code="a">Ukrainian-English collocation dictionary</subfield>
+    <subfield code="b">for students of Ukrainian</subfield>
+    <subfield code="c">Yuri I. Shevchuk</subfield>
+  </datafield>
+  <datafield tag="250" ind1=" " ind2=" ">
+    <subfield code="a">2nd edition</subfield>
+  </datafield>
+  <datafield tag="264" ind1=" " ind2="1">
+    <subfield code="a">New York</subfield>
+    <subfield code="b">Hippocrene Books</subfield>
+    <subfield code="c">2024</subfield>
+  </datafield>
+  <datafield tag="300" ind1=" " ind2=" ">
+    <subfield code="a">XXXIV, 961 Seiten</subfield>
+  </datafield>
+  <datafield tag="336" ind1=" " ind2=" ">
+    <subfield code="a">Text</subfield>
+    <subfield code="b">txt</subfield>
+    <subfield code="2">rdacontent</subfield>
+  </datafield>
+  <datafield tag="337" ind1=" " ind2=" ">
+    <subfield code="a">ohne Hilfsmittel zu benutzen</subfield>
+    <subfield code="b">n</subfield>
+    <subfield code="2">rdamedia</subfield>
+  </datafield>
+  <datafield tag="338" ind1=" " ind2=" ">
+    <subfield code="a">Band</subfield>
+    <subfield code="b">nc</subfield>
+    <subfield code="2">rdacarrier</subfield>
+  </datafield>
+  <datafield tag="500" ind1=" " ind2=" ">
+    <subfield code="a">Includes bibliographical references</subfield>
+  </datafield>
+  <datafield tag="520" ind1=" " ind2=" ">
+    <subfield code="a">The Ukrainian-English Collocation Dictionary provides the core Ukrainian lexicon as it is used in contemporary speech. This dictionary has no precedents in Ukrainian and Slavic bilingual lexicography and combines elements of six types of dictionaries: translation, collocation, learner's, thesaurus, phraseological and encyclopedic dictionaries. The Ukrainian-English Collocation Dictionary will be useful to Ukrainian language learners of all levels (elementary, intermediate, advanced and superior), Ukrainian language instructors and instructors of theory and practice of translation, Ukrainian-English and English-Ukrainian translators and interpreters, comparative linguists, lexicographers, researchers, business people, journalists, and anyone with an interest in the Ukrainian language. It is an irreplaceable resource for Ukrainian-speakers who study English and native speakers of Ukrainian who wish to perfect and enrich their Ukrainian. Includes: over 9,000 entries that comprise the most frequently used Ukrainian lexicon; more than 200,000 word combinations; 80,000 illustrative examples, including common Ukrainian idioms and their English equivalents; a comprehensive introduction to the Ukrainian language and grammar</subfield>
+  </datafield>
+  <datafield tag="546" ind1=" " ind2=" ">
+    <subfield code="a">In English and Ukrainian</subfield>
+  </datafield>
+  <datafield tag="655" ind1=" " ind2="7">
+    <subfield code="a">Wörterbuch</subfield>
+    <subfield code="0">(DE-588)4066724-8</subfield>
+    <subfield code="0">(DE-627)104682620</subfield>
+    <subfield code="0">(DE-576)209166061</subfield>
+    <subfield code="2">gnd-content</subfield>
+  </datafield>
+  <datafield tag="689" ind1="0" ind2="0">
+    <subfield code="D">s</subfield>
+    <subfield code="0">(DE-588)4120373-2</subfield>
+    <subfield code="0">(DE-627)104234210</subfield>
+    <subfield code="0">(DE-576)209534591</subfield>
+    <subfield code="a">Ukrainisch</subfield>
+    <subfield code="2">gnd</subfield>
+  </datafield>
+  <datafield tag="689" ind1="0" ind2="1">
+    <subfield code="D">s</subfield>
+    <subfield code="0">(DE-588)4014777-0</subfield>
+    <subfield code="0">(DE-627)106338749</subfield>
+    <subfield code="0">(DE-576)208909400</subfield>
+    <subfield code="a">Englisch</subfield>
+    <subfield code="2">gnd</subfield>
+  </datafield>
+  <datafield tag="689" ind1="0" ind2="2">
+    <subfield code="D">s</subfield>
+    <subfield code="0">(DE-588)4164667-8</subfield>
+    <subfield code="0">(DE-627)105445711</subfield>
+    <subfield code="0">(DE-576)209889993</subfield>
+    <subfield code="a">Kollokation</subfield>
+    <subfield code="2">gnd</subfield>
+  </datafield>
+  <datafield tag="689" ind1="0" ind2=" ">
+    <subfield code="5">(DE-627)</subfield>
+  </datafield>
+  <datafield tag="924" ind1="0" ind2=" ">
+    <subfield code="a">4775371304</subfield>
+    <subfield code="b">DE-15</subfield>
+    <subfield code="9">15</subfield>
+    <subfield code="c">BSZ</subfield>
+    <subfield code="d">c</subfield>
+  </datafield>
+  <datafield tag="936" ind1="r" ind2="v">
+    <subfield code="a">KC 1821</subfield>
+    <subfield code="b">Ukrainisch-fremdsprachige Wörterbücher (ausser deutsch)</subfield>
+    <subfield code="k">Slawistik</subfield>
+    <subfield code="k">Enzyklopädien und Wörterbücher</subfield>
+    <subfield code="k">Wörterbücher</subfield>
+    <subfield code="k">Ukrainische Wörterbücher</subfield>
+    <subfield code="k">Ukrainisch-fremdsprachige Wörterbücher (ausser deutsch)</subfield>
+    <subfield code="0">(DE-627)127099221X</subfield>
+    <subfield code="0">(DE-625)rvk/71558:</subfield>
+    <subfield code="0">(DE-576)20099221X</subfield>
+  </datafield>
+  <datafield tag="936" ind1="b" ind2="k">
+    <subfield code="a">18.54</subfield>
+    <subfield code="j">Ostslawische Sprachen und Literaturen: Sonstiges</subfield>
+    <subfield code="0">(DE-627)181570882</subfield>
+  </datafield>
+  <datafield tag="951" ind1=" " ind2=" ">
+    <subfield code="a">BO</subfield>
+  </datafield>
+</record></zs:recordData><zs:recordPosition>1</zs:recordPosition></zs:record></zs:records><zs:echoedSearchRetrieveRequest><zs:version>1.1</zs:version><zs:query>pica.isb=9780781814492</zs:query><zs:maximumRecords>2</zs:maximumRecords><zs:recordPacking>xml</zs:recordPacking><zs:recordSchema>marcxml</zs:recordSchema></zs:echoedSearchRetrieveRequest></zs:searchRetrieveResponse>
