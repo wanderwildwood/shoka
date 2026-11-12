@@ -10,7 +10,7 @@ or by hand.
 | | |
 |---|---|
 | ![Scanning: the camera, other ways to add a book, and the books so far](screenshots/1-scan.png) | ![The collection in Sections, fiction shelved by genre](screenshots/2-shelf.png) |
-| ![A book already catalogued, going back on the shelf](screenshots/3-place.png) | ![A book's details, to correct](screenshots/4-edit.png) |
+| ![A book already cataloged, going back on the shelf](screenshots/3-place.png) | ![A book's details, to correct](screenshots/4-edit.png) |
 
 ## Cataloging
 
