@@ -81,6 +81,8 @@ fun Scanner(
             // A TextureView, not a SurfaceView: a SurfaceView ignores Compose's clipping and
             // paints the preview over the tabs and buttons around it.
             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            // The camera picture is read for barcodes and must keep its colours in dark mode.
+            DarkMode.keep(this)
         }
     }
 
