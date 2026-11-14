@@ -15,6 +15,8 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <queries>
+        <!-- Home, whose dark mode switch this app follows when Home is installed. -->
+        <package android:name="com.wanderwildwood.iori" />
         <!-- Audio Reading, asked whether it has a book, for "Listen" on the book's page. -->
         <package android:name="com.wanderwildwood.mimidoku" />
         <!-- Files, which answers "save" and "open" for the spreadsheet with its own screens. -->
@@ -37,6 +39,12 @@
         android:networkSecurityConfig="@xml/network_security"
         android:supportsRtl="false"
         android:theme="@style/Theme.App">
+
+        <!-- Starts dark mode before the first screen is drawn. Holds no data. -->
+        <provider
+            android:name="com.wanderwildwood.shoka.ui.DarkModeInit"
+            android:authorities="${applicationId}.darkmodeinit"
+            android:exported="false" />
 
         <activity
             android:name=".MainActivity"
