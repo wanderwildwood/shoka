@@ -73,6 +73,10 @@ import java.io.IOException
 import java.text.DateFormat
 import java.util.Date
 import zxingcpp.BarcodeReader
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 
 @Composable
 private fun Title(text: String) {
@@ -95,6 +99,7 @@ private fun Field(
     secret: Boolean = false,
     autoCorrect: Boolean? = null,
     onDone: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     TextFieldMMD(
         value = value, onValueChange = set, singleLine = true,
@@ -105,7 +110,7 @@ private fun Field(
         ),
         keyboardActions = KeyboardActions(onDone = onDone?.let { done -> { done() } }),
         visualTransformation = if (secret) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp).then(modifier),
     )
 }
 
@@ -142,12 +147,22 @@ fun ManualDialog(lib: Library, dismiss: () -> Unit, done: (String?, Long?) -> Un
             else -> bad = true
         }
     }
+    val field = remember { FocusRequester() }
     EInkDialog(onDismiss = dismiss) {
         Title(stringResource(R.string.manual_title))
+        // The field is what the dialog is for: it takes the focus as it opens and the keyboard
+        // comes up. Asked from inside the dialog, a frame after it is drawn: the field lives in
+        // the dialog's own window, which a request from the screen beneath does not reach.
+        val keyboardNow = LocalSoftwareKeyboardController.current
+        LaunchedEffect(Unit) {
+            withFrameNanos { }
+            runCatching { field.requestFocus() }
+            keyboardNow?.show()
+        }
         Field(
             text, { text = it; bad = false }, R.string.manual_label,
             if (letters) KeyboardType.Text else KeyboardType.Number, KeyboardCapitalization.None,
-            autoCorrect = false, onDone = ::add,
+            autoCorrect = false, onDone = ::add, modifier = Modifier.focusRequester(field),
         )
         when {
             bad && text.isBlank() -> Note(stringResource(R.string.manual_empty))
@@ -172,10 +187,20 @@ fun SearchDialog(lib: Library, dismiss: () -> Unit, added: (Long, Boolean) -> Un
     var offline by remember { mutableStateOf(false) }
     var empty by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val field = remember { FocusRequester() }
 
     EInkDialog(onDismiss = dismiss) {
         Title(stringResource(R.string.search_heading))
-        Field(title, { title = it; empty = false }, R.string.field_title, caps = KeyboardCapitalization.Words)
+        // The field is what the dialog is for: it takes the focus as it opens and the keyboard
+        // comes up. Asked from inside the dialog, a frame after it is drawn: the field lives in
+        // the dialog's own window, which a request from the screen beneath does not reach.
+        val keyboardNow = LocalSoftwareKeyboardController.current
+        LaunchedEffect(Unit) {
+            withFrameNanos { }
+            runCatching { field.requestFocus() }
+            keyboardNow?.show()
+        }
+        Field(title, { title = it; empty = false }, R.string.field_title, caps = KeyboardCapitalization.Words, modifier = Modifier.focusRequester(field))
         Field(author, { author = it; empty = false }, R.string.field_author, caps = KeyboardCapitalization.Words)
         Spacer(Modifier.height(6.dp))
         when {
@@ -542,12 +567,22 @@ fun ByHandDialog(lib: Library, dismiss: () -> Unit, added: (Long) -> Unit) {
     var title by remember { mutableStateOf("") }
     var author by remember { mutableStateOf("") }
     var untitled by remember { mutableStateOf(false) }
+    val field = remember { FocusRequester() }
 
     EInkDialog(onDismiss = dismiss) {
         Title(stringResource(R.string.by_hand_heading))
+        // The field is what the dialog is for: it takes the focus as it opens and the keyboard
+        // comes up. Asked from inside the dialog, a frame after it is drawn: the field lives in
+        // the dialog's own window, which a request from the screen beneath does not reach.
+        val keyboardNow = LocalSoftwareKeyboardController.current
+        LaunchedEffect(Unit) {
+            withFrameNanos { }
+            runCatching { field.requestFocus() }
+            keyboardNow?.show()
+        }
         Note(stringResource(R.string.by_hand_note))
         Spacer(Modifier.height(6.dp))
-        Field(title, { title = it; untitled = false }, R.string.field_title, caps = KeyboardCapitalization.Words)
+        Field(title, { title = it; untitled = false }, R.string.field_title, caps = KeyboardCapitalization.Words, modifier = Modifier.focusRequester(field))
         if (untitled) Note(stringResource(R.string.edit_needs_title))
         Field(author, { author = it }, R.string.field_author, caps = KeyboardCapitalization.Words)
         Spacer(Modifier.height(6.dp))
