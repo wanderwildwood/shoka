@@ -35,6 +35,11 @@ import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.shoka.Library
 import com.wanderwildwood.shoka.R
 import kotlinx.coroutines.launch
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
 
 /**
  * Behind the cog: the Nextcloud the catalogue syncs with, and the shelf order out to a
@@ -102,7 +107,7 @@ fun SettingsScreen(lib: Library, onBack: () -> Unit, onAbout: () -> Unit) {
             item(key = "turn") {
                 val turn by lib.turnWithPhone.collectAsStateWithLifecycle()
                 Row(
-                    Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { lib.setTurnWithPhone(!turn) }
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics { role = Role.Switch; toggleableState = ToggleableState(turn) }.clickable { lib.setTurnWithPhone(!turn) }
                         .padding(vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -117,7 +122,7 @@ fun SettingsScreen(lib: Library, onBack: () -> Unit, onAbout: () -> Unit) {
             }
             item(key = "dark") {
                 Row(
-                    Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { DarkMode.set(context, !DarkMode.on) }
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics { role = Role.Switch; toggleableState = ToggleableState(DarkMode.on) }.clickable { DarkMode.set(context, !DarkMode.on) }
                         .padding(vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
