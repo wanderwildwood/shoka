@@ -1,5 +1,6 @@
 package com.wanderwildwood.shoka.ui
 
+import androidx.activity.compose.BackHandler
 import android.Manifest
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -93,6 +94,10 @@ fun ShelfApp(lib: Library) {
     var about by rememberSaveable { mutableStateOf(false) }
     var byHand by rememberSaveable { mutableStateOf(false) }
     val books by lib.books.collectAsStateWithLifecycle()
+
+    // Back from Shelf order goes to Scan; only Back from Scan leaves the app. On this panel the
+    // launcher is under the next tap once the app has gone.
+    BackHandler(enabled = !settings && tab != 0) { tab = 0 }
 
     if (settings) {
         // A screen of its own, so the Scan page and its camera are let go while it is up: the
