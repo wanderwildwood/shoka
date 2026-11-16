@@ -18,6 +18,7 @@ import com.wanderwildwood.shoka.ui.ShelfApp
 import com.wanderwildwood.shoka.ui.houseTypography
 import com.wanderwildwood.shoka.ui.monochrome
 import kotlinx.coroutines.launch
+import com.wanderwildwood.shoka.ui.DarkSelection
 
 class MainActivity : ComponentActivity() {
     private val library: Library by viewModels()
@@ -46,9 +47,9 @@ class MainActivity : ComponentActivity() {
                     else controller.show(WindowInsetsCompat.Type.statusBars())
                     onDispose { }
                 }
-                ThemeMMD(colorScheme = monochrome, typography = houseTypography) {
+                ThemeMMD(colorScheme = monochrome, typography = houseTypography) { DarkSelection {
                     ArmedScope { ShelfApp(library) }
-                }
+                } }
             }
         }
     }
