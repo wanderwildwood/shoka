@@ -17,7 +17,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 import org.w3c.dom.Element
 import org.xml.sax.InputSource
 
-/** What a catalogue said about one book. Empty strings for what it didn't say. */
+/** What a catalog said about one book. Empty strings for what it didn't say. */
 data class Found(
     val title: String = "",
     val author: String = "",
@@ -27,7 +27,7 @@ data class Found(
     val lccn: String = "",
     val isbn: String = "",
     val source: String = "",
-    /** Whether the catalogue itself calls it fiction; null when it doesn't say. */
+    /** Whether the catalog itself calls it fiction; null when it doesn't say. */
     val fiction: Boolean? = null,
     /** One of [Shelf.genres] when the subject headings say which; "" otherwise. */
     val genre: String = "",
@@ -40,8 +40,8 @@ sealed interface Answer {
 }
 
 /**
- * The Library of Congress catalogue first, for the Dewey number in its 082 field and its own
- * word on whether a book is fiction; Open Library after it, for books LC never catalogued
+ * The Library of Congress catalog first, for the Dewey number in its 082 field and its own
+ * word on whether a book is fiction; Open Library after it, for books LC never cataloged
  * and for the gaps; then, for a book from Norway, Germany, Sweden, Finland, the Netherlands,
  * France, Poland or Portugal that still has no Dewey number, that country's national catalog;
  * then K10plus, the German libraries' union catalog, which holds books from everywhere, and
@@ -66,10 +66,17 @@ object Lookup {
 
     suspend fun byIsbn(isbn13: String): Answer = withContext(Dispatchers.IO) {
         var offline = false
+        // Whether any catalog answered at all, with a record or with nothing.
+        var reached = false
         fun <T> attempt(block: () -> T): T? = try {
-            block()
+            block().also { reached = true }
         } catch (e: IOException) {
             offline = true; null
+        } catch (e: Exception) {
+            // An answer that could not be read is no answer from this catalog; the rest are
+            // still asked.
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            reached = true; null
         }
 
         val forms = listOfNotNull(isbn13, Isbn.to10(isbn13))
@@ -116,9 +123,11 @@ object Lookup {
                 )
             }
         }
+        // Offline only when no catalog could be reached: one that answered "nothing" means
+        // the book is unknown, not that it should be asked for again every minute.
         when {
             merged != null -> Answer.Hit(merged!!)
-            offline -> Answer.Offline
+            offline && !reached -> Answer.Offline
             else -> Answer.Miss
         }
     }
@@ -208,7 +217,26 @@ object Lookup {
             c.disconnect()
             throw IOException("HTTP ${c.responseCode}")
         }
-        return c.inputStream
+        return Capped(c.inputStream, MAX_ANSWER_BYTES)
+    }
+
+    /** No catalog's answer to one question is anywhere near this; anything longer is cut off as a failure. */
+    private const val MAX_ANSWER_BYTES = 4L * 1024 * 1024
+
+    /** [inner], failing with an IOException once more than [max] bytes have been read. */
+    private class Capped(private val inner: InputStream, private val max: Long) : InputStream() {
+        private var read = 0L
+        private fun count(n: Int): Int {
+            if (n > 0) {
+                read += n
+                if (read > max) throw IOException("answer too long")
+            }
+            return n
+        }
+        override fun read(): Int = inner.read().also { if (it >= 0) count(1) }
+        override fun read(b: ByteArray, off: Int, len: Int): Int = count(inner.read(b, off, len))
+        override fun available(): Int = inner.available()
+        override fun close() = inner.close()
     }
 
     // ---- Library of Congress, SRU returning MARCXML ----
@@ -321,7 +349,7 @@ object Lookup {
     // ---- National libraries, by the ISBN's country ----
 
     private fun national(which: Match.National, isbn13: String): Found? = when (which) {
-        // The Norwegian catalogue finds the record by ISBN in JSON, and serves it as MARC. A
+        // The Norwegian catalog finds the record by ISBN in JSON, and serves it as MARC. A
         // record from before 2007 carries only the ISBN-10, and its search doesn't turn one
         // form into the other, so a book it doesn't know by ISBN-13 is asked again by ISBN-10.
         Match.National.NORWAY -> {
@@ -662,7 +690,7 @@ object Match {
         emptyList()
     }
 
-    /** The first record id in the Norwegian catalogue's search answer, or null. */
+    /** The first record id in the Norwegian catalog's search answer, or null. */
     fun nbId(json: String): String? = try {
         JSONObject(json).optJSONObject("_embedded")?.optJSONArray("items")?.optJSONObject(0)
             ?.optString("id")?.takeIf { it.isNotBlank() }
@@ -695,7 +723,7 @@ object Match {
 
     /**
      * Catalog text as it should read: the DNB wraps a leading article in the control
-     * characters that tell sorting to skip it, and the Norwegian catalogue leaves two spaces
+     * characters that tell sorting to skip it, and the Norwegian catalog leaves two spaces
      * after one ("En  klimabok"); both go.
      */
     fun tidy(s: String): String = s.replace(sortMarks, "").replace(spaces, " ").trim()
@@ -729,7 +757,7 @@ object Match {
      * fiction", "Horror fiction" ...), or "". Headings often name two; the first rule here
      * wins, so a dystopia shelves as science fiction even where it is also called fantasy or
      * horror.
-     * "Love stories" is left out: catalogues give it to half the classics.
+     * "Love stories" is left out: catalogs give it to half the classics.
      */
     fun genre(subjects: List<String>, juvenile: Boolean): String {
         if (juvenile) return "children"
