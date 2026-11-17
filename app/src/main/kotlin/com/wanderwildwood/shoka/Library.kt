@@ -31,9 +31,9 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 /**
- * The catalogue: every book, kept in one JSON file and written after each change, plus the
+ * The catalog: every book, kept in one JSON file and written after each change, plus the
  * queue that looks them up and, when signed in, the sync to Nextcloud. Scanning never waits
- * on the network -- a book goes in at once and fills itself in when the catalogues answer.
+ * on the network -- a book goes in at once and fills itself in when the catalogs answer.
  */
 class Library(app: Application) : AndroidViewModel(app) {
 
@@ -87,9 +87,9 @@ class Library(app: Application) : AndroidViewModel(app) {
     private var pendingSync: Job? = null
 
     /**
-     * The catalogue's etag on the server as this phone last read or wrote it. While the app is
-     * open the etag is asked for every [WATCH_MS] (a few hundred bytes, no catalogue), and only
-     * when it has moved, because another phone wrote, is the catalogue fetched and merged.
+     * The catalog's etag on the server as this phone last read or wrote it. While the app is
+     * open the etag is asked for every [WATCH_MS] (a few hundred bytes, no catalog), and only
+     * when it has moved, because another phone wrote, is the catalog fetched and merged.
      */
     private var remoteTag: String? = null
     private var watching: Job? = null
@@ -99,7 +99,13 @@ class Library(app: Application) : AndroidViewModel(app) {
     init {
         viewModelScope.launch {
             val loaded = withContext(Dispatchers.IO) {
-                runCatching { Book.listFromJson(JSONArray(file.readText())) }.getOrDefault(emptyList())
+                if (!file.exists()) emptyList()
+                else runCatching { Book.listFromJson(JSONArray(file.readText())) }.getOrElse {
+                    // There but unreadable: kept aside under another name, never written over
+                    // with an empty catalog.
+                    file.renameTo(File(file.parentFile, "books.json.unreadable-${System.currentTimeMillis()}"))
+                    emptyList()
+                }
             }
             lastId = loaded.maxOfOrNull { it.id } ?: 0L
             all.value = loaded
@@ -222,7 +228,7 @@ class Library(app: Application) : AndroidViewModel(app) {
             } catch (e: IOException) {
                 Answer.Offline
             } catch (e: Exception) {
-                // A catalogue answering with something unreadable is a miss, not a crash.
+                // A catalog answering with something unreadable is a miss, not a crash.
                 Answer.Miss
             }
             change(id) { cur ->
@@ -236,7 +242,7 @@ class Library(app: Application) : AndroidViewModel(app) {
                             lc = cur.lc.ifEmpty { f.lc },
                             ddc = cur.ddc.ifEmpty { f.ddc },
                             lccn = cur.lccn.ifEmpty { f.lccn },
-                            // Set by hand wins; otherwise what the catalogue says, if it says.
+                            // Set by hand wins; otherwise what the catalog says, if it says.
                             fiction = cur.fiction ?: f.fiction,
                             genre = cur.genre.ifEmpty { f.genre },
                             isbn = cur.isbn.ifEmpty { f.isbn },
@@ -252,12 +258,12 @@ class Library(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Novels catalogued before Fiction had genres get theirs looked up, once, a book at a time
+     * Novels cataloged before Fiction had genres get theirs looked up, once, a book at a time
      * and quietly: the status stays as it was, and a book found to have none keeps none.
      * Offline, it stops and tries again on the next start.
      */
     private suspend fun fillGenres() {
-        // An empty catalogue has nothing to fill; books synced in later come from a phone that does.
+        // An empty catalog has nothing to fill; books synced in later come from a phone that does.
         if (prefs.getBoolean("genres_filled", false) || books.value.isEmpty()) return
         val todo = books.value.filter {
             it.status == Status.FOUND && it.isFiction && it.genre.isEmpty() && (it.isbn.isNotEmpty() || it.lccn.isNotEmpty())
@@ -297,11 +303,16 @@ class Library(app: Application) : AndroidViewModel(app) {
                 // a power cut just after can leave half a file -- or an empty one, which the
                 // rename alone allows if the battery dies before the data is on disk.
                 val tmp = File(file.parentFile, "books.json.tmp")
-                FileOutputStream(tmp).use { out ->
-                    out.write(Book.listToJson(snapshot).toString().toByteArray())
-                    out.fd.sync()
+                // A full disk or a failed rename is not a reason to close the app: the list is
+                // still in memory, and the next change writes it again.
+                try {
+                    FileOutputStream(tmp).use { out ->
+                        out.write(Book.listToJson(snapshot).toString().toByteArray())
+                        out.fd.sync()
+                    }
+                    if (!tmp.renameTo(file)) file.writeText(Book.listToJson(snapshot).toString())
+                } catch (_: java.io.IOException) {
                 }
-                tmp.renameTo(file)
             }
         }
     }
@@ -336,7 +347,7 @@ class Library(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Watches the shared catalogue while the app is on screen, so books another phone scans
+     * Watches the shared catalog while the app is on screen, so books another phone scans
      * turn up here within [WATCH_MS]: started when the app comes to the front, stopped when it
      * goes. Nothing runs in the background, and there is no push server.
      */
@@ -431,7 +442,7 @@ class Library(app: Application) : AndroidViewModel(app) {
     /** How many books a spreadsheet had, and how many of them were new here. */
     data class Imported(val read: Int, val added: Int)
 
-    /** Adds what the file has that the catalogue doesn't. Null when the file can't be read. */
+    /** Adds what the file has that the catalog doesn't. Null when the file can't be read. */
     suspend fun import(uri: Uri): Imported? {
         val text = withContext(Dispatchers.IO) {
             runCatching {
@@ -450,7 +461,7 @@ class Library(app: Application) : AndroidViewModel(app) {
         if (adding.isNotEmpty()) {
             all.update { it + adding }
             changed()
-            // A book still waiting for its catalogue record when it was saved goes on waiting here.
+            // A book still waiting for its catalog record when it was saved goes on waiting here.
             adding.filter { it.status == Status.LOOKING || it.status == Status.OFFLINE }.forEach { enqueue(it.id) }
         }
         return Imported(read = fresh.size, added = adding.size)
@@ -459,7 +470,7 @@ class Library(app: Application) : AndroidViewModel(app) {
     private fun now() = System.currentTimeMillis()
 
     companion object {
-        /** How often an open app asks whether the shared catalogue has changed. */
+        /** How often an open app asks whether the shared catalog has changed. */
         const val WATCH_MS = 15_000L
         /** How long after the last change this phone writes, so a run of scans is one write. */
         const val SETTLE_MS = 3_000L

@@ -24,7 +24,7 @@ class Cloud(account: Account, folder: String, client: OkHttpClient = http) {
     }
 
     /**
-     * The catalogue's etag on the server without fetching it: "" when there is no catalogue yet.
+     * The catalog's etag on the server without fetching it: "" when there is no catalog yet.
      * Throws [IOException] when the server can't be reached.
      */
     fun etag(): String = dav.etag("catalogue.json")
@@ -51,7 +51,12 @@ class Cloud(account: Account, folder: String, client: OkHttpClient = http) {
                 ifNone = remote == null,
             )
             if (wrote.ok) {
-                dav.put("shelf-order.csv", Csv.write(Shelf.order(merged, system), system, sectionName), "text/csv")
+                // The spreadsheet is a copy to read, made from the catalog just written: if it
+                // fails, the sync has still happened, and the next one writes it again.
+                try {
+                    dav.put("shelf-order.csv", Csv.write(Shelf.order(merged, system), system, sectionName), "text/csv")
+                } catch (_: java.io.IOException) {
+                }
                 return Synced(merged, wrote.etag)
             }
         }

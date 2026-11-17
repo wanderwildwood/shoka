@@ -86,7 +86,14 @@ fun Scanner(
         }
     }
 
+    // The reading thread ends when the scanner leaves the screen, after whatever is queued on
+    // it. Declared before the camera's effect, so it is let go after it.
+    DisposableEffect(Unit) {
+        onDispose { executor.shutdown() }
+    }
+
     DisposableEffect(owner) {
+        val disposed = java.util.concurrent.atomic.AtomicBoolean(false)
         val reader = BarcodeReader().apply {
             options.formats = formats
             options.tryRotate = true
@@ -151,6 +158,8 @@ fun Scanner(
 
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
+            // The scanner may have left the screen while the camera was being got ready.
+            if (disposed.get()) return@addListener
             val provider = future.get()
             val shown = Preview.Builder().setTargetRotation(displayRotation(context)).build().also {
                 it.surfaceProvider = previewView.surfaceProvider
@@ -164,11 +173,12 @@ fun Scanner(
         }, ContextCompat.getMainExecutor(context))
 
         onDispose {
+            disposed.set(true)
             runCatching { future.get().unbindAll() }
             bound.set(null)
             camera = null
             // After any read still running on the same thread.
-            executor.execute { numbers.close() }
+            runCatching { executor.execute { numbers.close() } }.onFailure { numbers.close() }
         }
     }
 
