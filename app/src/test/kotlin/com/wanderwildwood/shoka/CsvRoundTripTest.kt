@@ -27,6 +27,18 @@ class CsvRoundTripTest {
         assertEquals(books.map { it.added }, back.map { it.added })
     }
 
+    @Test fun `a cell that would run as a formula comes back as it was, and a book known by its LCCN alone is kept`() {
+        val books = listOf(
+            Book(id = 7, title = "The Quiet Orchard", author = "Ada Whitlock", lccn = "=1+1", source = "+loc", added = day),
+            Book(id = 8, lccn = "2019012345", added = day),
+        )
+        val text = Csv.write(placed(*books.toTypedArray()), CallNumber.System.DEWEY)
+        assertTrue(text.lines().none { line -> line.split(',').any { it.startsWith("=") || it.startsWith("+") } })
+        val back = Csv.read(text, ids())
+        assertEquals(listOf("=1+1", "2019012345"), back.map { it.lccn })
+        assertEquals("+loc", back.first().source)
+    }
+
     @Test fun `a file from an older version reads as before`() {
         val old = "position,section,lc,dewey,title,author,year,isbn,lccn,copies,source,fiction,genre\n" +
             "1,,,813.6,The Quiet Orchard,Ada Whitlock,2019,,,2,loc,yes,\n" +

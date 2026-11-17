@@ -20,10 +20,10 @@ object Csv {
             val b = p.book
             appendLine(
                 listOf(
-                    p.position.toString(), if (system == CallNumber.System.SECTIONS) sectionName(p.section) else "",
-                    b.lc, b.ddc, safe(b.title), safe(b.author), b.year, b.isbn, b.lccn, b.copies.toString(), b.source,
+                    p.position.toString(), safe(if (system == CallNumber.System.SECTIONS) sectionName(p.section) else ""),
+                    safe(b.lc), safe(b.ddc), safe(b.title), safe(b.author), safe(b.year), b.isbn, safe(b.lccn), b.copies.toString(), safe(b.source),
                     when (b.fiction) { true -> "yes"; false -> "no"; null -> "" },
-                    b.genre,
+                    safe(b.genre),
                     b.status.name.lowercase(), if (b.added > 0) Instant.ofEpochMilli(b.added).toString() else "",
                 ).joinToString(",", transform = ::quote)
             )
@@ -32,7 +32,7 @@ object Csv {
 
     /**
      * A spreadsheet runs a cell that starts with = + - @ (or a tab or return) as a formula, and a
-     * title is whatever a catalogue or a person typed. A single quote in front makes it text; the
+     * title (or a call number, a source, a section's name) is whatever a catalog or a person typed. A single quote in front makes it text; the
      * reader below takes it off again, so a round trip returns the title as it was.
      */
     internal fun safe(s: String): String =
@@ -97,19 +97,19 @@ object Csv {
             Book(
                 id = nextId(),
                 isbn = Isbn.normalize(col(r, "isbn")) ?: "",
-                lccn = col(r, "lccn"),
+                lccn = unsafe(col(r, "lccn")),
                 title = unsafe(col(r, "title")),
                 author = unsafe(col(r, "author")),
-                year = col(r, "year"),
-                lc = CallNumber.cleanLc(col(r, "lc")),
-                ddc = CallNumber.cleanDdc(col(r, "dewey")),
-                source = col(r, "source").ifEmpty { "imported" },
+                year = unsafe(col(r, "year")),
+                lc = CallNumber.cleanLc(unsafe(col(r, "lc"))),
+                ddc = CallNumber.cleanDdc(unsafe(col(r, "dewey"))),
+                source = unsafe(col(r, "source")).ifEmpty { "imported" },
                 status = status(col(r, "status")) ?: Status.FOUND,
                 copies = col(r, "copies").toIntOrNull()?.coerceAtLeast(1) ?: 1,
                 added = added(col(r, "added")) ?: System.currentTimeMillis(),
                 fiction = when (col(r, "fiction").lowercase()) { "yes" -> true; "no" -> false; else -> null },
                 genre = col(r, "genre").lowercase().takeIf { it in Shelf.genres || it == Shelf.FICTION } ?: "",
             )
-        }.filter { it.title.isNotEmpty() || it.isbn.isNotEmpty() }
+        }.filter { it.title.isNotEmpty() || it.isbn.isNotEmpty() || it.lccn.isNotEmpty() }
     }
 }
