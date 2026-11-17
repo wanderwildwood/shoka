@@ -42,7 +42,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 
 /**
- * Behind the cog: the Nextcloud the catalogue syncs with, and the shelf order out to a
+ * Behind the cog: the Nextcloud the catalog syncs with, and the shelf order out to a
  * spreadsheet and back. What a save or a read did stays under its row until the next one.
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)

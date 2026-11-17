@@ -5,8 +5,8 @@ import android.content.Intent
 import android.net.Uri
 
 /**
- * A book's recording in Audio Reading (com.wanderwildwood.mimidoku), for "Listen" on the book's
- * page. Audio Reading says whether its library - the card and any Audiobookshelf server - has
+ * A book's recording in Audio Reader (com.wanderwildwood.mimidoku), for "Listen" on the book's
+ * page. Audio Reader says whether its library - the card and any Audiobookshelf server - has
  * the book, answering this app alone and about that one book; without it, or without the book,
  * there is no "Listen".
  */
@@ -15,7 +15,7 @@ object Listen {
     private const val AUDIO_READING = "com.wanderwildwood.mimidoku"
     private const val ACTION_OPEN_BOOK = "com.wanderwildwood.mimidoku.OPEN_BOOK"
 
-    /** Audio Reading's key for [book], or null. Reads another app: call it off the main thread. */
+    /** Audio Reader's key for [book], or null. Reads another app: call it off the main thread. */
     fun find(context: Context, book: Book): String? {
         if (book.title.isBlank()) return null
         val uri = Uri.parse("content://$AUDIO_READING.books/find").buildUpon()

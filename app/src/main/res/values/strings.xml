@@ -145,7 +145,7 @@
     <string name="source">From: %1$s</string>
     <string name="save">Save</string>
     <string name="look_again">Look it up again</string>
-    <!-- On a book's page, only when Audio Reading has a recording of it: opens it there -->
+    <!-- On a book's page, only when Audio Reader has a recording of it: opens it there -->
     <string name="listen">Listen</string>
     <string name="delete">Delete</string>
     <string name="delete_armed">Delete — tap again</string>

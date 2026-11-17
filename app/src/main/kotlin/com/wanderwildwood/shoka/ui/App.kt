@@ -79,7 +79,7 @@ import zxingcpp.BarcodeReader
 /** What the last scan did, shown under the camera until the next one. */
 sealed interface Event {
     data class Added(val id: Long) : Event
-    /** A book already catalogued: most likely going back on the shelf, or a second copy. */
+    /** A book already cataloged: most likely going back on the shelf, or a second copy. */
     data class Place(val id: Long, val copyAdded: Boolean = false) : Event
     data object NotIsbn : Event
 }
@@ -264,7 +264,7 @@ private fun ScanScreen(
     val feedback = remember { Feedback(context) }
     DisposableEffect(Unit) { onDispose { feedback.release() } }
 
-    // No modes: a book the catalogue has is going back on the shelf, any other is new.
+    // No modes: a book the catalog has is going back on the shelf, any other is new.
     fun take(isbn: String) {
         val have = lib.findIsbn(isbn)
         if (have != null) { feedback.again(); setEvent(Event.Place(have.id)) }

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Library of Congress catalogue answers SRU queries over plain HTTP only. Nothing
+<!-- The Library of Congress catalog answers SRU queries over plain HTTP only. Nothing
      private goes to it: an ISBN, an LCCN, or a title; and every other host stays HTTPS. -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">

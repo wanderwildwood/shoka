@@ -2,8 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- The camera reads barcodes and printed numbers; the network looks them up, and the
-         network's state says when one has come back, so a book that waited is looked up then.
-         Nothing else.
+         network's state says when one has come back, so a book that waited is looked up then;
+         vibration is the buzz for a barcode that is not a book's. Nothing else.
          A device with no camera (Supernote's tablets) still installs it, and adds books by hand. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -17,7 +17,7 @@
     <queries>
         <!-- Home, whose dark mode switch this app follows when Home is installed. -->
         <package android:name="com.wanderwildwood.iori" />
-        <!-- Audio Reading, asked whether it has a book, for "Listen" on the book's page. -->
+        <!-- Audio Reader, asked whether it has a book, for "Listen" on the book's page. -->
         <package android:name="com.wanderwildwood.mimidoku" />
         <!-- Files, which answers "save" and "open" for the spreadsheet with its own screens. -->
         <package android:name="com.wanderwildwood.tana" />

@@ -31,7 +31,7 @@ object Isbn {
         return body + check13(body)
     }
 
-    /** The ISBN-10 form, which only 978- numbers have. Older catalogue records carry only this. */
+    /** The ISBN-10 form, which only 978- numbers have. Older catalog records carry only this. */
     fun to10(isbn13: String): String? {
         if (!isbn13.startsWith("978") || isbn13.length != 13) return null
         val body = isbn13.substring(3, 12)
