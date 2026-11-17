@@ -24,7 +24,7 @@ data class Book(
     val deleted: Boolean = false,
     /** Set by hand when [fictionGuess] is wrong; null means go by the guess. */
     val fiction: Boolean? = null,
-    /** One of [Shelf.genres] for a novel, from the catalogue or set by hand; "" when unknown. */
+    /** One of [Shelf.genres] for a novel, from the catalog or set by hand; "" when unknown. */
     val genre: String = "",
 ) {
     /**
@@ -105,8 +105,9 @@ object Shelf {
     /** Where a book stands in the Sections order: a fiction shelf, its Dewey hundred, or "". */
     fun section(b: Book): String = when {
         b.isFiction -> b.genre.takeIf { it in genres } ?: FICTION
-        CallNumber.ddcKey(b.ddc) != null -> b.ddc.trim().take(1)
-        else -> ""
+        // From the cleaned number: a stray "/" or "'" in front, or digits of another script, is
+        // never taken for a hundred that has no shelf.
+        else -> CallNumber.ddcKey(b.ddc)?.take(1)?.takeIf { it in deweyClasses } ?: ""
     }
 
     /**
@@ -133,7 +134,7 @@ object Shelf {
         val rank = (listOf(FICTION) + genres + deweyClasses + "").withIndex().associate { it.value to it.index }
         return books.filterNot { it.deleted }
             .map { it to section(it) }
-            .sortedWith(compareBy<Pair<Book, String>> { rank.getValue(it.second) }.thenBy(byName) { it.first })
+            .sortedWith(compareBy<Pair<Book, String>> { rank[it.second] ?: rank.getValue("") }.thenBy(byName) { it.first })
             .mapIndexed { i, (b, sec) -> Placed(b, i + 1, sec.isNotEmpty(), sec) }
     }
 

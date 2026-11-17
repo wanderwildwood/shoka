@@ -19,6 +19,12 @@ class SectionsTest {
         assertFalse(Book(id = 1, ddc = "530.12", lc = "QC174.12 .F45").fictionGuess)
     }
 
+    @Test fun aStrayMarkBeforeTheDeweyNumberStillFindsItsHundred() {
+        val odd = Book(id = 1, title = "Notes on Rivers", ddc = "/551.48", fiction = false)
+        assertEquals("5", Shelf.section(odd))
+        assertEquals(listOf("5"), Shelf.order(listOf(odd), CallNumber.System.SECTIONS).map { it.section })
+    }
+
     @Test fun setByHandOverrulesTheGuess() {
         assertFalse(Book(id = 1, ddc = "813.54", fiction = false).isFiction)
         assertTrue(Book(id = 1, lc = "PS3511.R94 P6", fiction = true).isFiction)

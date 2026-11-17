@@ -277,7 +277,7 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
     }
     fun edited() = book.copy(
         title = title.trim(), author = author.trim(), year = year.trim(),
-        ddc = ddc.trim(), copies = copies, fiction = fiction, genre = genre,
+        ddc = if (ddc.isBlank()) "" else CallNumber.cleanDdc(ddc), copies = copies, fiction = fiction, genre = genre,
         status = if (book.status == Status.NOT_FOUND && ddc.isNotBlank()) Status.FOUND else book.status,
         source = if (ddc != book.ddc) "edited" else book.source,
     )
@@ -355,7 +355,7 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
                             if (book.source.isNotEmpty()) Note(stringResource(R.string.source, book.source))
                         }
                     }
-                    // Listen only when Audio Reading has this book to play.
+                    // Listen only when Audio Reader has this book to play.
                     recording?.let { key ->
                         item(key = "listen") { DialogButton(stringResource(R.string.listen)) { Listen.open(context, key); dismiss() } }
                     }
@@ -478,7 +478,23 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                     Box(Modifier.fillMaxWidth().height(180.dp).clipToBounds().background(Color.Black)) {
                         Scanner(Modifier.fillMaxSize(), torch = false, formats = setOf(BarcodeReader.Format.QR_CODE)) { code ->
                             val got = LoginFlow.fromQr(code.text)
-                            if (got == null) problem = notLogin else { qr = false; lib.signIn(got) }
+                            if (got == null) {
+                                problem = notLogin
+                            } else if (!checkingNow) {
+                                // Asked once, as a typed sign-in is, before it is kept and the
+                                // catalog goes up to it.
+                                qr = false
+                                checkingNow = true
+                                problem = checking
+                                scope.launch {
+                                    val result = withContext(Dispatchers.IO) { NextcloudCheck.run(got.server, got.user, got.password) }
+                                    checkingNow = false
+                                    when (result) {
+                                        is CheckResult.Good -> { problem = null; lib.signIn(result.account) }
+                                        is CheckResult.Bad -> problem = problemText[result.problem]
+                                    }
+                                }
+                            }
                         }
                     }
                     problem?.let { Note(it) }
