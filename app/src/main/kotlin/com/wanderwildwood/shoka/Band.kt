@@ -2,12 +2,12 @@ package com.wanderwildwood.shoka
 
 import java.nio.ByteBuffer
 
-/** A small greyscale picture: one byte a pixel, row after row. */
-class Grey(val pixels: ByteArray, val width: Int, val height: Int)
+/** A small grayscale picture: one byte a pixel, row after row. */
+class Gray(val pixels: ByteArray, val width: Int, val height: Int)
 
 /**
  * The strip across the middle of a camera frame where the ISBN line is held, cut out of the
- * frame's brightness plane (which is already greyscale), turned upright and, when it is small,
+ * frame's brightness plane (which is already grayscale), turned upright and, when it is small,
  * doubled in size for the OCR.
  */
 object Band {
@@ -19,7 +19,7 @@ object Band {
     fun cut(
         plane: ByteBuffer, rowStride: Int, width: Int, height: Int, rotation: Int,
         fracW: Float, fracH: Float, scale: Int = 1,
-    ): Grey {
+    ): Gray {
         val sideways = rotation == 90 || rotation == 270
         val uw = if (sideways) height else width
         val uh = if (sideways) width else height
@@ -58,7 +58,7 @@ object Band {
                 }
             }
         }
-        return Grey(out, ow, oh)
+        return Gray(out, ow, oh)
     }
 
     /**
@@ -68,7 +68,7 @@ object Band {
      * A pixel is ink when it is [margin] darker than its surroundings, and a speck of one or
      * two pixels on its own is grain, not ink.
      */
-    fun ink(g: Grey, radius: Int = 20, margin: Int = 16): Grey {
+    fun ink(g: Gray, radius: Int = 20, margin: Int = 16): Gray {
         val w = g.width
         val h = g.height
         val src = g.pixels
@@ -111,7 +111,7 @@ object Band {
             }
             if (near <= 2) clean[y * w + x] = 255.toByte()
         }
-        return Grey(clean, w, h)
+        return Gray(clean, w, h)
     }
 
     /**

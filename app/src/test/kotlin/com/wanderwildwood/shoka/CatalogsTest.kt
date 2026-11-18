@@ -122,7 +122,7 @@ class CatalogsTest {
     }
 
     @Test fun norwegianOlderBookIsFoundByIsbn10() {
-        // Before 2007 the record held only the ISBN-10: asked by ISBN-13 the catalogue has
+        // Before 2007 the record held only the ISBN-10: asked by ISBN-13 the catalog has
         // nothing, asked by ISBN-10 it has the book.
         assertNull(Match.nbId(sample("nb-sprakvett-isbn13.json")))
         assertEquals("4eec22cd36d8e478fa8a540e2f8e5757", Match.nbId(sample("nb-sprakvett-isbn10.json")))

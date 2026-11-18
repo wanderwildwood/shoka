@@ -38,7 +38,7 @@ object NextcloudCheck {
         client: OkHttpClient = http,
     ): CheckResult {
         if (server.isBlank()) return CheckResult.Bad(Problem.BAD_ADDRESS)
-        val base = LoginFlow.normalise(server)
+        val base = LoginFlow.normalize(server)
         if (base.toHttpUrlOrNull() == null) return CheckResult.Bad(Problem.BAD_ADDRESS)
         if (!plainAllowed(base)) return CheckResult.Bad(Problem.PLAIN_HTTP)
         val login = user.trim()

@@ -47,7 +47,7 @@ object LoginFlow {
 
     fun start(server: String): Started {
         val request = Request.Builder()
-            .url("${normalise(server)}/index.php/login/v2")
+            .url("${normalize(server)}/index.php/login/v2")
             .post(FormBody.Builder().build())
             .header("User-Agent", AGENT)
             .build()
@@ -100,11 +100,11 @@ object LoginFlow {
         val user = parts["user"]?.takeIf { it.isNotEmpty() } ?: return null
         val password = parts["password"]?.takeIf { it.isNotEmpty() } ?: return null
         val server = parts["server"]?.takeIf { it.isNotEmpty() } ?: return null
-        return Account(normalise(server), user, password)
+        return Account(normalize(server), user, password)
     }
 
     /** What was typed, as an address: "cloud.example" becomes "https://cloud.example". */
-    fun normalise(server: String): String {
+    fun normalize(server: String): String {
         val trimmed = server.trim().trimEnd('/')
         return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
     }

@@ -33,7 +33,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.wanderwildwood.shoka.Band
-import com.wanderwildwood.shoka.Grey
+import com.wanderwildwood.shoka.Gray
 import com.wanderwildwood.shoka.NumberReader
 import zxingcpp.BarcodeReader
 import java.util.concurrent.Executors
@@ -230,11 +230,11 @@ object TextBox {
 }
 
 /**
- * The part of [image] under the text box, with some room around it, upright and greyscale.
+ * The part of [image] under the text box, with some room around it, upright and grayscale.
  * The box's place is worked out from the preview's size and shape, since the preview is
  * cropped to fill its view and need not be the same shape as the frames analysed.
  */
-private fun band(image: ImageProxy, view: PreviewView, preview: Preview?, boxHeightPx: Int): Grey {
+private fun band(image: ImageProxy, view: PreviewView, preview: Preview?, boxHeightPx: Int): Gray {
     val rotation = image.imageInfo.rotationDegrees
     val sideways = rotation == 90 || rotation == 270
     val frameW = if (sideways) image.height else image.width

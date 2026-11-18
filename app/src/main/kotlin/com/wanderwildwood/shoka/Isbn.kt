@@ -48,7 +48,7 @@ object Isbn {
 
 /**
  * Library of Congress Control Numbers, as printed on copyright pages: "65-21385",
- * "2006274831", "sn 78-1234". Normalised the way the LoC does it -- prefix kept, the part
+ * "2006274831", "sn 78-1234". Normalized the way the LoC does it -- prefix kept, the part
  * after the hyphen zero-padded to six digits.
  */
 object Lccn {

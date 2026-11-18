@@ -103,7 +103,7 @@
         <item quantity="one">Added %1$d book.</item>
         <item quantity="other">Added %1$d books.</item>
     </plurals>
-    <!-- After "Added N books." when the file also had books the catalogue already had -->
+    <!-- After "Added N books." when the file also had books the catalog already had -->
     <plurals name="import_had">
         <item quantity="one">%1$d was here already.</item>
         <item quantity="other">%1$d were here already.</item>

@@ -14,18 +14,18 @@ class NumberReader(context: Context) {
     private var tess: TessBaseAPI? = null
     private var broken = false
 
-    /** What Tesseract reads in [grey], made black on white first, as it reads it. */
-    fun text(grey: Grey): String {
+    /** What Tesseract reads in [gray], made black on white first, as it reads it. */
+    fun text(gray: Gray): String {
         val t = engine() ?: return ""
-        val ink = Band.ink(grey)
+        val ink = Band.ink(gray)
         t.setImage(ink.pixels, ink.width, ink.height, 1, ink.width)
         val text = t.getUTF8Text() ?: ""
         t.clear()
         return text
     }
 
-    /** The ISBN-13 in [grey], or null when there is none whose check digit is right. */
-    fun read(grey: Grey): String? = PrintedIsbn.find(text(grey))
+    /** The ISBN-13 in [gray], or null when there is none whose check digit is right. */
+    fun read(gray: Gray): String? = PrintedIsbn.find(text(gray))
 
     fun close() {
         tess?.recycle()

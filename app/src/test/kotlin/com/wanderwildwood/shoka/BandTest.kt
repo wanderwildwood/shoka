@@ -60,7 +60,7 @@ class BandTest {
     }
 
     private fun paper(w: Int, h: Int, at: (Int, Int) -> Int) =
-        Grey(ByteArray(w * h) { at(it % w, it / w).toByte() }, w, h)
+        Gray(ByteArray(w * h) { at(it % w, it / w).toByte() }, w, h)
 
     @Test fun inkIsInkAndGrainIsNot() {
         // Paper at 200 with a lone dark pixel (grain) and a 6 x 6 dark block (print).
