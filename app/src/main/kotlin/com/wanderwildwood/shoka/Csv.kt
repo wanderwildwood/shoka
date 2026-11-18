@@ -112,4 +112,15 @@ object Csv {
             )
         }.filter { it.title.isNotEmpty() || it.isbn.isNotEmpty() || it.lccn.isNotEmpty() }
     }
+
+    /**
+     * Whether a book read from a file, [row], is [have], already in the catalog: by ISBN when
+     * it has one, else by LCCN, else by title and author. Two books still waiting for their
+     * lookup have no title, so they are never the same by that alone.
+     */
+    fun alreadyHere(have: Book, row: Book): Boolean = when {
+        row.isbn.isNotEmpty() -> have.isbn == row.isbn
+        row.lccn.isNotEmpty() -> have.lccn == row.lccn
+        else -> row.title.isNotEmpty() && have.title == row.title && have.author == row.author
+    }
 }

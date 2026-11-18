@@ -1,6 +1,7 @@
 package com.wanderwildwood.shoka
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,6 +38,22 @@ class CsvRoundTripTest {
         val back = Csv.read(text, ids())
         assertEquals(listOf("=1+1", "2019012345"), back.map { it.lccn })
         assertEquals("+loc", back.first().source)
+    }
+
+    @Test fun `a book known by its LCCN alone is matched by its LCCN, not by an empty title`() {
+        val waiting = Book(id = 1, isbn = "9780000000002", status = Status.LOOKING)
+        val byLccn = Book(id = 2, lccn = "2019012345", status = Status.LOOKING)
+        val row = Book(id = 3, lccn = "2019012345", status = Status.LOOKING)
+        assertFalse(Csv.alreadyHere(waiting, row))
+        assertTrue(Csv.alreadyHere(byLccn, row))
+        assertFalse(Csv.alreadyHere(byLccn, row.copy(lccn = "2020054321")))
+        // By hand, with neither number: title and author, and never two empty titles.
+        val hand = Book(id = 4, title = "Notes on Rivers", author = "Tomas Reyes")
+        assertTrue(Csv.alreadyHere(hand, hand.copy(id = 5)))
+        assertFalse(Csv.alreadyHere(Book(id = 6), Book(id = 7)))
+        // An ISBN decides when the row has one.
+        assertFalse(Csv.alreadyHere(waiting, Book(id = 8, isbn = "9780000000019")))
+        assertTrue(Csv.alreadyHere(waiting, Book(id = 9, isbn = "9780000000002")))
     }
 
     @Test fun `a file from an older version reads as before`() {

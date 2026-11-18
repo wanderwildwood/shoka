@@ -470,12 +470,7 @@ class Library(app: Application) : AndroidViewModel(app) {
         loaded.await()
         val have = all.value.filterNot { it.deleted }
         val fresh = runCatching { Csv.read(text, ::newId) }.getOrNull() ?: return null
-        val adding = fresh.filter { n ->
-            have.none { h ->
-                (n.isbn.isNotEmpty() && h.isbn == n.isbn) ||
-                    (n.isbn.isEmpty() && h.title == n.title && h.author == n.author)
-            }
-        }.map { it.copy(modified = now()) }
+        val adding = fresh.filter { n -> have.none { h -> Csv.alreadyHere(h, n) } }.map { it.copy(modified = now()) }
         if (adding.isNotEmpty()) {
             all.update { it + adding }
             changed()
