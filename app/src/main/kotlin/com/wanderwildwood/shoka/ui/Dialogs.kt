@@ -56,6 +56,7 @@ import com.wanderwildwood.shoka.Isbn
 import com.wanderwildwood.shoka.Lccn
 import com.wanderwildwood.shoka.Library
 import com.wanderwildwood.shoka.Listen
+import com.wanderwildwood.shoka.Source
 import com.wanderwildwood.shoka.cloud.CheckResult
 import com.wanderwildwood.shoka.cloud.LoginFlow
 import com.wanderwildwood.shoka.cloud.NextcloudCheck
@@ -279,7 +280,7 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
         title = title.trim(), author = author.trim(), year = year.trim(),
         ddc = if (ddc.isBlank()) "" else CallNumber.cleanDdc(ddc), copies = copies, fiction = fiction, genre = genre,
         status = if (book.status == Status.NOT_FOUND && ddc.isNotBlank()) Status.FOUND else book.status,
-        source = if (ddc != book.ddc) "edited" else book.source,
+        source = if (ddc != book.ddc) Source.EDITED else book.source,
     )
 
     val context = LocalContext.current
@@ -352,7 +353,15 @@ fun EditDialog(lib: Library, book: Book, dismiss: () -> Unit) {
                         ).joinToString("  ·  ")
                         Column(Modifier.padding(vertical = 6.dp)) {
                             if (ids.isNotEmpty()) Note(ids)
-                            if (book.source.isNotEmpty()) Note(stringResource(R.string.source, book.source))
+                            if (book.source.isNotEmpty()) {
+                                val words = mapOf(
+                                    Source.BY_HAND to stringResource(R.string.source_by_hand),
+                                    Source.EDITED to stringResource(R.string.source_edited),
+                                    Source.IMPORTED to stringResource(R.string.source_imported),
+                                    Source.OTHER_EDITION to stringResource(R.string.source_other_edition),
+                                )
+                                Note(stringResource(R.string.source, Source.shown(book.source) { words[it] }))
+                            }
                         }
                     }
                     // Listen only when Audio Reader has this book to play.

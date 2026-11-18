@@ -123,7 +123,7 @@ object Lookup {
                     author = if (loc == null) other.author.ifEmpty { merged!!.author } else merged!!.author,
                     fiction = merged!!.fiction ?: other.fiction,
                     genre = merged!!.genre.ifEmpty { other.genre },
-                    source = merged!!.source + " + another edition",
+                    source = Source.withOtherEdition(merged!!.source),
                 )
             }
         }

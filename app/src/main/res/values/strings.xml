@@ -143,6 +143,11 @@
     <string name="field_isbn">ISBN</string>
     <string name="field_copies">Copies</string>
     <string name="source">From: %1$s</string>
+    <!-- Where a book's details came from, after "From:", beside the catalogs' own names -->
+    <string name="source_by_hand">by hand</string>
+    <string name="source_edited">edited</string>
+    <string name="source_imported">imported</string>
+    <string name="source_other_edition">another edition</string>
     <string name="save">Save</string>
     <string name="look_again">Look it up again</string>
     <!-- On a book's page, only when Audio Reader has a recording of it: opens it there -->

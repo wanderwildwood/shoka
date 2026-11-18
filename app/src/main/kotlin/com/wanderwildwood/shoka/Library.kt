@@ -192,7 +192,7 @@ class Library(app: Application) : AndroidViewModel(app) {
     )
 
     fun addByHand(title: String, author: String): Book = add(
-        Book(id = newId(), title = title.trim(), author = author.trim(), source = "by hand", status = Status.NOT_FOUND)
+        Book(id = newId(), title = title.trim(), author = author.trim(), source = Source.BY_HAND, status = Status.NOT_FOUND)
     )
 
     private fun add(b: Book): Book {

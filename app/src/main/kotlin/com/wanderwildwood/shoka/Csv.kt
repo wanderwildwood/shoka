@@ -103,7 +103,7 @@ object Csv {
                 year = unsafe(col(r, "year")),
                 lc = CallNumber.cleanLc(unsafe(col(r, "lc"))),
                 ddc = CallNumber.cleanDdc(unsafe(col(r, "dewey"))),
-                source = unsafe(col(r, "source")).ifEmpty { "imported" },
+                source = unsafe(col(r, "source")).ifEmpty { Source.IMPORTED },
                 status = status(col(r, "status")) ?: Status.FOUND,
                 copies = col(r, "copies").toIntOrNull()?.coerceAtLeast(1) ?: 1,
                 added = added(col(r, "added")) ?: System.currentTimeMillis(),
