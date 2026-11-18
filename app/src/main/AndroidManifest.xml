@@ -3,7 +3,7 @@
 
     <!-- The camera reads barcodes and printed numbers; the network looks them up, and the
          network's state says when one has come back, so a book that waited is looked up then;
-         vibration is the buzz for a barcode that is not a book's. Nothing else.
+         vibration is the buzz after each scan. Nothing else.
          A device with no camera (Supernote's tablets) still installs it, and adds books by hand. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
