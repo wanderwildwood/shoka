@@ -6,6 +6,7 @@ import android.net.Network
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -56,6 +57,13 @@ class Library(app: Application) : AndroidViewModel(app) {
     /** Everything, deleted records included, because a sync has to pass deletions on. */
     private val all = MutableStateFlow<List<Book>>(emptyList())
 
+    /**
+     * Done once books.json has been read. Until then nothing is written to it, synced or
+     * imported, so a book added while a large catalog is still loading neither stands in for
+     * the whole catalog on disk nor is dropped when the catalog arrives.
+     */
+    private val loaded = CompletableDeferred<Unit>()
+
     val books: StateFlow<List<Book>> = all.map { list -> list.filterNot { it.deleted } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -98,7 +106,7 @@ class Library(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
-            val loaded = withContext(Dispatchers.IO) {
+            val read = withContext(Dispatchers.IO) {
                 if (!file.exists()) emptyList()
                 else runCatching { Book.listFromJson(JSONArray(file.readText())) }.getOrElse {
                     // There but unreadable: kept aside under another name, never written over
@@ -107,9 +115,11 @@ class Library(app: Application) : AndroidViewModel(app) {
                     emptyList()
                 }
             }
-            lastId = loaded.maxOfOrNull { it.id } ?: 0L
-            all.value = loaded
-            loaded.filter { !it.deleted && (it.status == Status.LOOKING || it.status == Status.OFFLINE) }
+            lastId = maxOf(lastId, read.maxOfOrNull { it.id } ?: 0L)
+            // Books added while it loaded are kept beside what was read.
+            all.update { added -> if (added.isEmpty()) read else Merge.merge(read, added) }
+            loaded.complete(Unit)
+            read.filter { !it.deleted && (it.status == Status.LOOKING || it.status == Status.OFFLINE) }
                 .forEach { enqueue(it.id) }
             syncNow()
             fillGenres()
@@ -296,6 +306,7 @@ class Library(app: Application) : AndroidViewModel(app) {
 
     private fun save() {
         viewModelScope.launch(Dispatchers.IO) {
+            loaded.await()
             writeLock.withLock {
                 // Read inside the lock, so whichever write lands last carries the newest list.
                 val snapshot = all.value
@@ -321,6 +332,7 @@ class Library(app: Application) : AndroidViewModel(app) {
     fun syncNow(): Job? {
         val acct = account.value ?: return null
         return viewModelScope.launch {
+            loaded.await()
             syncLock.withLock {
                 syncState.value = SyncState.SYNCING
                 val sent = all.value
@@ -450,7 +462,8 @@ class Library(app: Application) : AndroidViewModel(app) {
                     .use { it.readBytes().toString(Charsets.UTF_8) }
             }.getOrNull()
         } ?: return null
-        val have = books.value
+        loaded.await()
+        val have = all.value.filterNot { it.deleted }
         val fresh = runCatching { Csv.read(text, ::newId) }.getOrNull() ?: return null
         val adding = fresh.filter { n ->
             have.none { h ->
