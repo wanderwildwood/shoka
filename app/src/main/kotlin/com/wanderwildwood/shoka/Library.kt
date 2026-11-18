@@ -48,11 +48,19 @@ class Library(app: Application) : AndroidViewModel(app) {
 
     /**
      * Found books without a Dewey number and without the Library of Congress among their
-     * catalogs, asked again since this start: each at most once, and none more once LoC is
-     * found still out of reach.
+     * catalogs, asked again since this start: each at most once. A book whose asking found no
+     * catalog at all is not counted as asked, and the asking waits for the app to come back
+     * or a connection to come back ([recheckWaits]).
      */
     private val rechecked = java.util.Collections.synchronizedSet(HashSet<Long>())
-    @Volatile private var locOutOfReach = false
+    @Volatile private var recheckWaits = false
+
+    /**
+     * Some catalog was out of reach while another answered. That may be LoC, or only Open
+     * Library or the other-edition search with LoC reachable; the answer does not say which,
+     * so either way no more books are asked again until the next start.
+     */
+    @Volatile private var catalogOutOfReach = false
 
     /** A connection coming back picks up what waited for one, without a tap. */
     private val connectivity = app.getSystemService(ConnectivityManager::class.java)
@@ -155,6 +163,7 @@ class Library(app: Application) : AndroidViewModel(app) {
      */
     fun resume() {
         books.value.filter { it.status == Status.OFFLINE }.forEach { enqueue(it.id) }
+        recheckWaits = false
         recheck()
         if (account.value != null && syncState.value == SyncState.FAILED) syncNow()
     }
@@ -168,7 +177,7 @@ class Library(app: Application) : AndroidViewModel(app) {
         b.status == Status.FOUND && b.ddc.isEmpty() && b.isbn.isNotEmpty() && Source.withoutLoc(b.source)
 
     private fun recheck() {
-        if (locOutOfReach) return
+        if (catalogOutOfReach || recheckWaits) return
         books.value.filter { recheckable(it) && rechecked.add(it.id) }.forEach { enqueue(it.id) }
     }
 
@@ -252,7 +261,10 @@ class Library(app: Application) : AndroidViewModel(app) {
             queued.remove(id)
             val b = find(id) ?: continue
             if (b.status == Status.FOUND) {
-                if (recheckable(b) && !locOutOfReach) again(b)
+                if (recheckable(b)) {
+                    // Waiting or stopped since it was queued: not asked, so not used up.
+                    if (catalogOutOfReach || recheckWaits) rechecked.remove(b.id) else again(b)
+                }
                 continue
             }
             val answer = try {
@@ -306,7 +318,13 @@ class Library(app: Application) : AndroidViewModel(app) {
         } catch (e: Exception) {
             Answer.Miss
         }
-        if (partial || answer == Answer.Offline) locOutOfReach = true
+        if (answer == Answer.Offline) {
+            // No catalog at all: the connection, not the catalogs. Asked again later.
+            rechecked.remove(b.id)
+            recheckWaits = true
+            return
+        }
+        if (partial) catalogOutOfReach = true
         val f = (answer as? Answer.Hit)?.found ?: return
         if (f.ddc.isEmpty()) return
         // Edited or deleted while it was asked: the reader's version stands.
