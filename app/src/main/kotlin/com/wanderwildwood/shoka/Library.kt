@@ -270,17 +270,20 @@ class Library(app: Application) : AndroidViewModel(app) {
     /**
      * Novels cataloged before Fiction had genres get theirs looked up, once, a book at a time
      * and quietly: the status stays as it was, and a book found to have none keeps none.
-     * Offline, it stops and tries again on the next start.
+     * Offline, or with a catalog out of reach and no genre from the rest, it stops and tries
+     * again on the next start.
      */
     private suspend fun fillGenres() {
+        val have = all.value.filterNot { it.deleted }
         // An empty catalog has nothing to fill; books synced in later come from a phone that does.
-        if (prefs.getBoolean("genres_filled", false) || books.value.isEmpty()) return
-        val todo = books.value.filter {
+        if (prefs.getBoolean("genres_filled", false) || have.isEmpty()) return
+        val todo = have.filter {
             it.status == Status.FOUND && it.isFiction && it.genre.isEmpty() && (it.isbn.isNotEmpty() || it.lccn.isNotEmpty())
         }
         for (b in todo) {
+            var partial = false
             val answer = try {
-                if (b.isbn.isNotEmpty()) Lookup.byIsbn(b.isbn) else Lookup.byLccn(b.lccn)
+                if (b.isbn.isNotEmpty()) Lookup.byIsbn(b.isbn) { partial = true } else Lookup.byLccn(b.lccn)
             } catch (e: IOException) {
                 Answer.Offline
             } catch (e: Exception) {
@@ -288,6 +291,8 @@ class Library(app: Application) : AndroidViewModel(app) {
             }
             if (answer == Answer.Offline) return
             val genre = (answer as? Answer.Hit)?.found?.genre.orEmpty()
+            // The Library of Congress's subject headings are where most genres come from.
+            if (partial && genre.isEmpty()) return
             if (genre.isNotEmpty()) change(b.id) { if (it.genre.isEmpty()) it.copy(genre = genre) else it }
         }
         prefs.edit().putBoolean("genres_filled", true).apply()

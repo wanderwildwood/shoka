@@ -64,7 +64,11 @@ object Lookup {
     private val initialStop = Regex("""(^|[\s.])\p{L}\.$""")
     private val fourDigits = Regex("""\d{4}""")
 
-    suspend fun byIsbn(isbn13: String): Answer = withContext(Dispatchers.IO) {
+    /**
+     * [someOffline] is called when a catalog could not be reached though another answered, so
+     * what came back may lack what that one would have given.
+     */
+    suspend fun byIsbn(isbn13: String, someOffline: (() -> Unit)? = null): Answer = withContext(Dispatchers.IO) {
         var offline = false
         // Whether any catalog answered at all, with a record or with nothing.
         var reached = false
@@ -125,6 +129,7 @@ object Lookup {
         }
         // Offline only when no catalog could be reached: one that answered "nothing" means
         // the book is unknown, not that it should be asked for again every minute.
+        if (offline && reached) someOffline?.invoke()
         when {
             merged != null -> Answer.Hit(merged!!)
             offline && !reached -> Answer.Offline
