@@ -480,5 +480,5 @@ class Library(app: Application) : AndroidViewModel(app) {
 /** The rule behind [Library.watch], apart from the network so it can be tested. */
 object Watch {
     /** Whether the server's [now] etag means another phone wrote since this one last synced. */
-    fun moved(seen: String?, now: String): Boolean = seen == null || seen != now
+    fun moved(seen: String?, now: String): Boolean = seen == null || !com.wanderwildwood.shoka.cloud.Etag.same(seen, now)
 }

@@ -56,13 +56,18 @@ class DavFolder(
      */
     fun put(name: String, body: String, type: String, ifMatch: String? = null, ifNone: Boolean = false): Put {
         var madeFolders = false
+        // The etag as the server keeps it first, then as it was handed over (see [Etag]): a
+        // refusal of the first is only taken as someone else's write once the second is refused too.
+        val tags = if (ifMatch == null) listOf(null) else listOf(Etag.strong(ifMatch), ifMatch).distinct()
+        var tried = 0
         while (true) {
             val builder = request(name).put(body.toByteArray().toRequestBody(type.toMediaTypeOrNull()))
-            if (ifMatch != null) builder.header("If-Match", ifMatch)
+            tags[tried]?.let { builder.header("If-Match", it) }
             if (ifNone) builder.header("If-None-Match", "*")
             val (code, etag) = call(builder.build()) { it.code to it.header("ETag") }
             when {
                 code in 200..299 -> return Put(true, etag)
+                code == 412 && tried + 1 < tags.size -> tried++
                 code == 412 -> return Put(false, null)
                 (code == 409 || code == 404) && !madeFolders -> { makeFolders(); madeFolders = true }
                 else -> throw Refused("HTTP $code")
@@ -107,3 +112,29 @@ object Folders {
 /** Each segment of a path percent-encoded for a URL, the slashes kept. */
 fun encodePath(path: String): String =
     path.split('/').joinToString("/") { URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
+
+/**
+ * Etags as servers hand them over. A web server that compresses the answer may mark the etag
+ * weak (W/"abc") or add its own ending ("abc-gzip", "abc-br"), and then the GET's etag is not
+ * the one a HEAD or a PUT gives, nor one the server will match. Compared, and sent back, in
+ * the form the file itself has. Tolerant on purpose: both forms are tried where it matters.
+ */
+object Etag {
+    private val ENDINGS = listOf("-gzip", "-br", "-deflate")
+
+    /** The file's own etag inside [tag]: no W/, no quotes, no compression ending. */
+    fun bare(tag: String): String {
+        var t = tag.trim()
+        if (t.startsWith("W/", ignoreCase = true)) t = t.substring(2)
+        t = t.trim('"')
+        ENDINGS.firstOrNull { t.endsWith(it, ignoreCase = true) }?.let { t = t.dropLast(it.length) }
+        return t
+    }
+
+    /** [tag] as a strong etag to send in If-Match: "abc". */
+    fun strong(tag: String): String = "\"" + bare(tag) + "\""
+
+    /** Whether two etags name the same version of a file. */
+    fun same(a: String, b: String): Boolean = bare(a) == bare(b)
+}
+

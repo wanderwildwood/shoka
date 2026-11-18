@@ -12,4 +12,5 @@ class WatchTest {
     @Test fun neverSeenSyncsOnce() = assertTrue(Watch.moved(null, "\"abc\""))
 
     @Test fun catalogueGoneFromTheServerSyncs() = assertTrue(Watch.moved("\"abc\"", ""))
+    @Test fun aCompressedFormOfTheSameEtagIsNotAMove() = assertFalse(Watch.moved("\"abc\"", "W/\"abc-gzip\""))
 }

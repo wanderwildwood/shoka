@@ -5,6 +5,7 @@ import com.wanderwildwood.shoka.cloud.DavFolder
 import com.wanderwildwood.shoka.cloud.LoginFlow
 import com.wanderwildwood.shoka.cloud.Refused
 import com.wanderwildwood.shoka.cloud.Unreachable
+import com.wanderwildwood.shoka.cloud.Etag
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -75,6 +76,21 @@ class DavFolderTest {
         val put = dav.put("catalogue.json", "{}", "application/json", ifMatch = "\"old\"")
         assertFalse(put.ok)
         assertEquals("\"old\"", server.takeRequest().getHeader("If-Match"))
+    }
+
+    @Test fun aCompressedEtagIsSentAsTheFilesOwnThenAsItCame() {
+        server.enqueue(MockResponse().setResponseCode(412))
+        server.enqueue(MockResponse().setResponseCode(201).setHeader("ETag", "\"abc\""))
+        val put = dav.put("catalogue.json", "{}", "application/json", ifMatch = "W/\"abc-gzip\"")
+        assertTrue(put.ok)
+        assertEquals("\"abc\"", server.takeRequest().getHeader("If-Match"))
+        assertEquals("W/\"abc-gzip\"", server.takeRequest().getHeader("If-Match"))
+    }
+
+    @Test fun etagsCompareAsTheFilesOwn() {
+        assertEquals("abc", Etag.bare("W/\"abc-gzip\""))
+        assertTrue(Etag.same("\"abc\"", "\"abc-br\""))
+        assertFalse(Etag.same("\"abc\"", "\"abd\""))
     }
 
     @Test fun getAnswersTextAndEtagOrNullWhenAbsent() {
