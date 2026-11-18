@@ -46,6 +46,14 @@ class Library(app: Application) : AndroidViewModel(app) {
     /** What is in [queue] and not yet answered, so a book is never asked about twice at once. */
     private val queued = java.util.Collections.synchronizedSet(HashSet<Long>())
 
+    /**
+     * Found books without a Dewey number and without the Library of Congress among their
+     * catalogs, asked again since this start: each at most once, and none more once LoC is
+     * found still out of reach.
+     */
+    private val rechecked = java.util.Collections.synchronizedSet(HashSet<Long>())
+    @Volatile private var locOutOfReach = false
+
     /** A connection coming back picks up what waited for one, without a tap. */
     private val connectivity = app.getSystemService(ConnectivityManager::class.java)
     private val network = object : ConnectivityManager.NetworkCallback() {
@@ -130,6 +138,7 @@ class Library(app: Application) : AndroidViewModel(app) {
             while (true) {
                 delay(60_000)
                 books.value.filter { it.status == Status.OFFLINE }.forEach { enqueue(it.id) }
+                recheck()
             }
         }
         // Called at once when there is a network already, which costs nothing: nothing waits yet.
@@ -146,7 +155,21 @@ class Library(app: Application) : AndroidViewModel(app) {
      */
     fun resume() {
         books.value.filter { it.status == Status.OFFLINE }.forEach { enqueue(it.id) }
+        recheck()
         if (account.value != null && syncState.value == SyncState.FAILED) syncNow()
+    }
+
+    /**
+     * A book found while the Library of Congress was out of reach may lack only the Dewey
+     * number LoC would have given. Such books are asked again quietly, at most once a start:
+     * the status stays FOUND, and only a Dewey number found fills anything in.
+     */
+    private fun recheckable(b: Book) =
+        b.status == Status.FOUND && b.ddc.isEmpty() && b.isbn.isNotEmpty() && Source.withoutLoc(b.source)
+
+    private fun recheck() {
+        if (locOutOfReach) return
+        books.value.filter { recheckable(it) && rechecked.add(it.id) }.forEach { enqueue(it.id) }
     }
 
     private fun enqueue(id: Long) {
@@ -228,7 +251,10 @@ class Library(app: Application) : AndroidViewModel(app) {
         for (id in queue) {
             queued.remove(id)
             val b = find(id) ?: continue
-            if (b.status == Status.FOUND) continue
+            if (b.status == Status.FOUND) {
+                if (recheckable(b) && !locOutOfReach) again(b)
+                continue
+            }
             val answer = try {
                 when {
                     b.isbn.isNotEmpty() -> Lookup.byIsbn(b.isbn)
@@ -264,6 +290,36 @@ class Library(app: Application) : AndroidViewModel(app) {
                     Answer.Offline -> cur.copy(status = Status.OFFLINE)
                 }
             }
+        }
+    }
+
+    /**
+     * One quiet second asking for a [recheckable] book. Nothing changes unless a Dewey number
+     * comes back; then the blanks are filled and the source says where it came from.
+     */
+    private suspend fun again(b: Book) {
+        var partial = false
+        val answer = try {
+            Lookup.byIsbn(b.isbn) { partial = true }
+        } catch (e: IOException) {
+            Answer.Offline
+        } catch (e: Exception) {
+            Answer.Miss
+        }
+        if (partial || answer == Answer.Offline) locOutOfReach = true
+        val f = (answer as? Answer.Hit)?.found ?: return
+        if (f.ddc.isEmpty()) return
+        // Edited or deleted while it was asked: the reader's version stands.
+        if (find(b.id)?.let { recheckable(it) } != true) return
+        change(b.id) { cur ->
+            cur.copy(
+                ddc = f.ddc,
+                lc = cur.lc.ifEmpty { f.lc },
+                lccn = cur.lccn.ifEmpty { f.lccn },
+                fiction = cur.fiction ?: f.fiction,
+                genre = cur.genre.ifEmpty { f.genre },
+                source = f.source,
+            )
         }
     }
 
