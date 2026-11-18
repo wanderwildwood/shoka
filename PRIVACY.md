@@ -19,8 +19,11 @@ Finna (`api.finna.fi`) for 978-951 and 978-952, the Netherlands' (`jsru.kb.nl`) 
 and 978-94, France's (`catalogue.bnf.fr`) for 978-2 and 979-10, Poland's (`data.bn.org.pl`)
 for 978-83, Portugal's PORBASE (`urn.porbase.org`) for 978-972 and 978-989. When none of
 these knows the ISBN at all, it goes to K10plus, the German libraries' union catalog
-(`sru.k10plus.de`), and then to Google Books (`www.googleapis.com`). Nothing else about you
-or your other books goes with it.
+(`sru.k10plus.de`), and then to Google Books (`www.googleapis.com`). When the Library of
+Congress had no Dewey number for a book that was found, the book's title and its author's
+surname also go to the Library of Congress, unencrypted like the rest, to find another edition
+of it that has one; this happens on its own, without a search. Nothing else about you or your
+other books goes with it.
 
 **Nextcloud**, only if you sign in: the catalog is written to a folder on your own
 server. While the app is on screen it asks that server every 15 seconds whether the catalog
@@ -39,7 +42,7 @@ About opens web addresses in your browser (the source, the site and the donation
 <!-- shared-about privacy section -->
 ## Who we are
 
-Shelf is made by wander wildwood, an independent developer: one person, not a company. wander wildwood is the data controller for anything the app itself handles, and that is very little. What you put in Shelf stays on your phone. The only things that go out are the lookups described above: a book's ISBN or LCCN, or the title and author you search for, sent to the Library of Congress and Open Library, and an ISBN to the national libraries, K10plus and Google Books as above; and, only if you sign in, the catalog written to your own Nextcloud server. The developer receives nothing, so the developer holds no data about you.
+Shelf is made by wander wildwood, an independent developer: one person, not a company. wander wildwood is the data controller for anything the app itself handles, and that is very little. What you put in Shelf stays on your phone. The only things that go out are the lookups described above: a book's ISBN or LCCN, or the title and author you search for, sent to the Library of Congress and Open Library, a found book's title and author's surname to the Library of Congress to find another edition, and an ISBN to the national libraries, K10plus and Google Books as above; and, only if you sign in, the catalog written to your own Nextcloud server. The developer receives nothing, so the developer holds no data about you.
 
 ## How to contact us
 
