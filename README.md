@@ -91,8 +91,9 @@ The catalog lives on the phone. **Settings (the cog) → Save as a spreadsheet**
 shelf order as a CSV (with each book's section, in the Sections order), and **Add from a
 spreadsheet** reads one back in.
 
-With a [Nextcloud](https://nextcloud.com/) account, **Settings → Nextcloud** keeps the
-catalog in a folder there (`Books` unless you choose another), as `catalogue.json` with
+With a [Nextcloud](https://nextcloud.com/) account (the server's address has to be https://),
+**Settings → Nextcloud** keeps the catalog in a folder there (`Books` unless you choose
+another), as `catalogue.json` with
 a `shelf-order.csv` beside it. Every phone signed in to the same folder keeps the same
 list, so two people can scan different rooms at once: while Shelf is open it asks the
 server every 15 seconds whether the catalog has changed (a few hundred bytes, not the
@@ -102,6 +103,9 @@ page, or with an app password: make one in Nextcloud's security settings on a co
 press **Show QR code for mobile apps**, and scan it with **Scan a QR code**. Pulling a book
 list down from its top syncs too, and a line says "Syncing…" and then "Up to date"; with no
 Nextcloud set up it does nothing.
+
+**Dark mode** is a switch in Settings: the same screens, white on black. It also follows the
+phone's own dark setting.
 
 ## Building
 

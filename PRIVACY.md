@@ -3,6 +3,10 @@
 Shelf has no account of its own and no server of its own. It sends nothing anywhere except
 as described here.
 
+**Permissions.** The manifest declares four: `CAMERA`, `INTERNET`, `ACCESS_NETWORK_STATE` (to
+notice when the connection comes back, so books waiting to be looked up are tried again) and
+`VIBRATE` (the tone and buzz after a scan).
+
 **The camera** is used only to read barcodes, an ISBN printed as text, and the QR code Nextcloud shows for signing in, on the phone. No picture is kept or sent.
 
 **Looking a book up** sends its ISBN or LCCN, or the title and author you search for, to the
