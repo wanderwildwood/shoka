@@ -26,6 +26,17 @@ object Source {
         return parts.none { it == "Library of Congress" || it == "LoC" || it == BY_HAND || it == EDITED || it == IMPORTED }
     }
 
+    /**
+     * Whether a found book may lack only the Dewey number LoC would have given, and so is
+     * worth asking again: found by ISBN from catalogs other than LoC, with no Dewey number.
+     */
+    fun recheckable(b: Book): Boolean =
+        b.status == Status.FOUND && b.ddc.isEmpty() && b.isbn.isNotEmpty() && withoutLoc(b.source)
+
+    /** The first [n] [recheckable] books of [books] not in [asked]. */
+    fun toRecheck(books: List<Book>, asked: Set<Long>, n: Int): List<Book> =
+        books.asSequence().filter { recheckable(it) && it.id !in asked }.take(n).toList()
+
     /** [source] for the page: each part through [word], which gives a word's text or null for a name. */
     fun shown(source: String, word: (String) -> String?): String =
         source.split(JOIN).joinToString(JOIN) { part -> word(part) ?: part }

@@ -62,6 +62,9 @@ class Library(app: Application) : AndroidViewModel(app) {
      */
     @Volatile private var catalogOutOfReach = false
 
+    /** The few books being asked again now, apart from [queue] so a scan never waits on them. */
+    private var rechecking: Job? = null
+
     /** A connection coming back picks up what waited for one, without a tap. */
     private val connectivity = app.getSystemService(ConnectivityManager::class.java)
     private val network = object : ConnectivityManager.NetworkCallback() {
@@ -164,21 +167,27 @@ class Library(app: Application) : AndroidViewModel(app) {
     fun resume() {
         books.value.filter { it.status == Status.OFFLINE }.forEach { enqueue(it.id) }
         recheckWaits = false
-        recheck()
         if (account.value != null && syncState.value == SyncState.FAILED) syncNow()
     }
 
     /**
      * A book found while the Library of Congress was out of reach may lack only the Dewey
-     * number LoC would have given. Such books are asked again quietly, at most once a start:
-     * the status stays FOUND, and only a Dewey number found fills anything in.
+     * number LoC would have given. Such books are asked again quietly, at most once a start
+     * and a few a minute, one after another and only while no scan waits for a lookup: the
+     * status stays FOUND, and only a Dewey number found fills anything in.
      */
-    private fun recheckable(b: Book) =
-        b.status == Status.FOUND && b.ddc.isEmpty() && b.isbn.isNotEmpty() && Source.withoutLoc(b.source)
-
     private fun recheck() {
-        if (catalogOutOfReach || recheckWaits) return
-        books.value.filter { recheckable(it) && rechecked.add(it.id) }.forEach { enqueue(it.id) }
+        if (catalogOutOfReach || recheckWaits || rechecking?.isActive == true || queued.isNotEmpty()) return
+        val next = Source.toRecheck(books.value, rechecked, RECHECKS_PER_MINUTE)
+        if (next.isEmpty()) return
+        next.forEach { rechecked.add(it.id) }
+        rechecking = viewModelScope.launch {
+            for (b in next) {
+                val cur = find(b.id)?.takeIf { Source.recheckable(it) } ?: continue
+                // Waiting or stopped since it was picked: not asked, so not used up.
+                if (catalogOutOfReach || recheckWaits) rechecked.remove(cur.id) else again(cur)
+            }
+        }
     }
 
     private fun enqueue(id: Long) {
@@ -260,13 +269,7 @@ class Library(app: Application) : AndroidViewModel(app) {
         for (id in queue) {
             queued.remove(id)
             val b = find(id) ?: continue
-            if (b.status == Status.FOUND) {
-                if (recheckable(b)) {
-                    // Waiting or stopped since it was queued: not asked, so not used up.
-                    if (catalogOutOfReach || recheckWaits) rechecked.remove(b.id) else again(b)
-                }
-                continue
-            }
+            if (b.status == Status.FOUND) continue
             val answer = try {
                 when {
                     b.isbn.isNotEmpty() -> Lookup.byIsbn(b.isbn)
@@ -306,8 +309,8 @@ class Library(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * One quiet second asking for a [recheckable] book. Nothing changes unless a Dewey number
-     * comes back; then the blanks are filled and the source says where it came from.
+     * One quiet second asking for a [Source.recheckable] book. Nothing changes unless a Dewey
+     * number comes back; then the blanks are filled and the source says where it came from.
      */
     private suspend fun again(b: Book) {
         var partial = false
@@ -328,7 +331,7 @@ class Library(app: Application) : AndroidViewModel(app) {
         val f = (answer as? Answer.Hit)?.found ?: return
         if (f.ddc.isEmpty()) return
         // Edited or deleted while it was asked: the reader's version stands.
-        if (find(b.id)?.let { recheckable(it) } != true) return
+        if (find(b.id)?.let { Source.recheckable(it) } != true) return
         change(b.id) { cur ->
             cur.copy(
                 ddc = f.ddc,
@@ -561,6 +564,8 @@ class Library(app: Application) : AndroidViewModel(app) {
         const val WATCH_MS = 15_000L
         /** How long after the last change this phone writes, so a run of scans is one write. */
         const val SETTLE_MS = 3_000L
+        /** How many found books are asked again each minute, at most. */
+        const val RECHECKS_PER_MINUTE = 2
     }
 }
 
