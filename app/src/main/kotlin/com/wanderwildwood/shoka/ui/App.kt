@@ -113,11 +113,11 @@ fun ShelfApp(lib: Library) {
             BarButton(Icons.Add, stringResource(R.string.by_hand)) { byHand = true }
             BarButton(Icons.Settings, stringResource(R.string.settings)) { settings = true }
         }
-        // One 48dp line holds the tabs and the buttons, upright and sideways: the screen is
-        // short either way, and two bars and a tab row took a fifth of it.
+        // One line holds the tabs and the buttons, upright and sideways: two bars and a tab row
+        // took a fifth of the screen. It is the house top bar's height (64dp), as in the other apps.
         val sideways = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         Row(
-            Modifier.fillMaxWidth().height(48.dp).padding(start = 12.dp),
+            Modifier.fillMaxWidth().height(64.dp).padding(start = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // The name is the launcher's to show; sideways there is room for it as well.
