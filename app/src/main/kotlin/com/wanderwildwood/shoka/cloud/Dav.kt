@@ -10,7 +10,8 @@ import java.io.IOException
 import java.net.URLEncoder
 
 /**
- * One folder in a Nextcloud, over WebDAV: `remote.php/dav/files/<user>/<folder>/`. The calls
+ * One folder in a Nextcloud, over WebDAV: `remote.php/dav/files/<uid>/<folder>/` (the user id;
+ * Basic with the login name). The calls
  * are Gallery's (an OkHttp client, Basic with the app password, the folder made level by level
  * where it is missing) with the ones a catalog needs added: GET, HEAD and a PUT that can be
  * made conditional on the file's etag. Nothing is ever deleted or moved on the server.
@@ -20,7 +21,7 @@ class DavFolder(
     folder: String,
     private val client: OkHttpClient = http,
 ) {
-    private val home = account.server.trimEnd('/') + "/remote.php/dav/files/" + encodePath(account.user)
+    private val home = account.server.trimEnd('/') + "/remote.php/dav/files/" + encodePath(account.uid)
     private val dir = home + folder.trim('/', ' ').split('/').filter { it.isNotEmpty() }
         .joinToString("") { "/" + encodePath(it) }
 

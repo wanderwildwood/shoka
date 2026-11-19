@@ -11,9 +11,22 @@ import java.util.concurrent.TimeUnit
 /**
  * A Nextcloud account as its login page hands it over: the server, the user's login name and an
  * app password made for this phone alone, which can be revoked from the server's security
- * settings without touching the real one.
+ * settings without touching the real one. [user] (the login name) is what signs in; [uid] (the
+ * user id the server knows, which can differ: an email address, another case) is what WebDAV
+ * paths are built with. Until the server has been asked, the two are the same.
  */
-data class Account(val server: String, val user: String, val password: String)
+data class Account(val server: String, val user: String, val password: String, val uid: String = user) {
+    /** Without the password, so it cannot end up in a log. */
+    override fun toString(): String = "Account(server=$server, user=$user, uid=$uid)"
+}
+
+/**
+ * The server as the screens show it: without http:// or https://, without a default port (a
+ * port of its own is kept) and without a slash at the end. The same for Home's account and the
+ * app's own.
+ */
+fun shownServer(server: String): String =
+    HomeAccount.sameServer(server).removePrefix("https://").removePrefix("http://")
 
 /** The server could not be reached, or its certificate could not be trusted: nothing was sent. */
 class Unreachable(message: String) : IOException(message)
@@ -110,10 +123,38 @@ object LoginFlow {
     }
 
     /**
-     * Plain http is refused for this app as a whole (Android blocks unencrypted traffic for it),
-     * so an address typed with http:// is caught here and said, rather than failing as "unreachable".
+     * Plain http is refused for this app (Android blocks unencrypted traffic for it), so an
+     * address typed with http:// is caught here and said, rather than failing as "unreachable".
+     * Whether [base] (an address with its scheme) may be used: https always; plain http only in a
+     * debug build ([debug]) and only to the computer an emulator runs on (10.0.2.2) or this phone
+     * itself, the hosts its network config lets through for a test server. A release is https only.
      */
-    fun isPlain(server: String): Boolean = server.trim().startsWith("http://", ignoreCase = true)
+    fun allowed(base: String, debug: Boolean): Boolean {
+        val t = base.trim()
+        if (t.startsWith("https://", ignoreCase = true)) return true
+        if (!debug || !t.startsWith("http://", ignoreCase = true)) return false
+        val host = t.substring(7).substringBefore('/').substringBefore(':').lowercase()
+        return host in TEST_HOSTS
+    }
+
+    private val TEST_HOSTS = setOf("10.0.2.2", "localhost", "127.0.0.1")
+
+    /**
+     * The account with the user id the server knows for it ([Account.uid]), asked once from
+     * `ocs/v2.php/cloud/user`. Login Flow hands over only the login name, which may be an email
+     * address; WebDAV paths need the user id. Unchanged when the server does not say.
+     */
+    fun withUid(account: Account): Account = runCatching {
+        val request = Request.Builder()
+            .url("${account.server.trimEnd('/')}/ocs/v2.php/cloud/user?format=json")
+            .header("Authorization", Credentials.basic(account.user, account.password, Charsets.UTF_8))
+            .header("OCS-APIRequest", "true")
+            .header("User-Agent", AGENT)
+            .build()
+        http.newCall(request).execute().use { r ->
+            NextcloudCheck.userId(r.code, r.body?.string().orEmpty())
+        }
+    }.getOrNull()?.let { account.copy(uid = it) } ?: account
 
     /** What asking the server whether a user name and app password are good came back as. */
     enum class Check { GOOD, REFUSED, UNREACHABLE }

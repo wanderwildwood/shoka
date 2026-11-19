@@ -61,6 +61,8 @@ import com.wanderwildwood.shoka.cloud.CheckResult
 import com.wanderwildwood.shoka.cloud.HomeAccount
 import com.wanderwildwood.shoka.cloud.LoginFlow
 import com.wanderwildwood.shoka.cloud.NextcloudCheck
+import com.wanderwildwood.shoka.cloud.shownServer
+import com.wanderwildwood.shoka.BuildConfig
 import com.wanderwildwood.shoka.cloud.Problem
 import com.wanderwildwood.shoka.Lookup
 import com.wanderwildwood.shoka.R
@@ -429,6 +431,8 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
         homeAvailable = homeWho == null && withContext(Dispatchers.IO) { HomeAccount.available(context) }
     }
     var browserWait by remember { mutableStateOf<Job?>(null) }
+    // https always; a debug build also takes plain http to a test server on the desk (10.0.2.2).
+    val plainOk = { base: String -> LoginFlow.allowed(base, BuildConfig.DEBUG) }
 
     var server by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("") }
@@ -486,7 +490,7 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                 Spacer(Modifier.height(6.dp))
                 DialogButton(stringResource(R.string.home_account_stop)) { lib.stopHome() }
             } else if (a != null) {
-                val shown = a.server.removePrefix("https://")
+                val shown = shownServer(a.server)
                 Note(
                     if (fromHome) stringResource(R.string.home_account_in_use, a.user, shown)
                     else stringResource(R.string.cloud_signed_in, a.user, shown)
@@ -533,7 +537,7 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                                 checkingNow = true
                                 problem = checking
                                 scope.launch {
-                                    val result = withContext(Dispatchers.IO) { NextcloudCheck.run(got.server, got.user, got.password) }
+                                    val result = withContext(Dispatchers.IO) { NextcloudCheck.run(got.server, got.user, got.password, plainOk) }
                                     checkingNow = false
                                     when (result) {
                                         is CheckResult.Good -> { problem = null; lib.signIn(result.account) }
@@ -562,7 +566,7 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                     checkingNow = true
                     problem = checking
                     scope.launch {
-                        val result = withContext(Dispatchers.IO) { NextcloudCheck.run(server, user, password) }
+                        val result = withContext(Dispatchers.IO) { NextcloudCheck.run(server, user, password, plainOk) }
                         checkingNow = false
                         when (result) {
                             is CheckResult.Good -> if (keep) { problem = null; lib.signIn(result.account) } else problem = testGood
@@ -582,7 +586,7 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                 // The second choice: only the address is typed, and the server's own page does the rest.
                 DialogButton(stringResource(R.string.cloud_browser)) {
                     if (server.isBlank()) { problem = noServer; return@DialogButton }
-                    if (LoginFlow.isPlain(server)) { problem = plainServer; return@DialogButton }
+                    if (!plainOk(LoginFlow.normalize(server))) { problem = plainServer; return@DialogButton }
                     if (waiting) return@DialogButton
                     browserWait = scope.launch {
                         val started = runCatching { withContext(Dispatchers.IO) { LoginFlow.start(server) } }.getOrNull()
@@ -597,7 +601,7 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                         // The server gives twenty minutes to finish signing in.
                         repeat(600) {
                             delay(2000)
-                            val got = runCatching { withContext(Dispatchers.IO) { LoginFlow.poll(started) } }.getOrNull()
+                            val got = runCatching { withContext(Dispatchers.IO) { LoginFlow.poll(started)?.let(LoginFlow::withUid) } }.getOrNull()
                             if (got != null) { waiting = false; lib.signIn(got); return@launch }
                         }
                         waiting = false

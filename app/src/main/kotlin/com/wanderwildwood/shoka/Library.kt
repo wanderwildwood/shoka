@@ -506,7 +506,10 @@ class Library(app: Application) : AndroidViewModel(app) {
         val json = runCatching { JSONObject(stored) }.getOrNull() ?: return null
         val raw = json.optString("password")
         val password = Secrets.open(raw)?.takeIf { it.isNotEmpty() } ?: return null
-        val account = Account(json.optString("server"), json.optString("user"), password)
+        val user = json.optString("user")
+        // Kept before the user id was: the login name stands in for it (and an own sign-in then
+        // kept the user id as the login name, as it was used).
+        val account = Account(json.optString("server"), user, password, json.optString("uid").ifEmpty { user })
         if (account.server.isEmpty() || account.user.isEmpty()) return null
         if (!Secrets.isSealed(raw)) saveAccount(account)
         return account
@@ -515,7 +518,7 @@ class Library(app: Application) : AndroidViewModel(app) {
     private fun saveAccount(a: Account) {
         // If the keystore will not seal, nothing is kept and the next start asks to sign in.
         val sealed = Secrets.seal(a.password) ?: return
-        val json = JSONObject().put("server", a.server).put("user", a.user).put("password", sealed)
+        val json = JSONObject().put("server", a.server).put("user", a.user).put("uid", a.uid).put("password", sealed)
         prefs.edit().putString("account", json.toString()).apply()
     }
 
@@ -554,7 +557,7 @@ class Library(app: Application) : AndroidViewModel(app) {
             viewModelScope.launch(Dispatchers.IO) { runCatching { LoginFlow.revoke(own) } }
         }
         pendingSync?.cancel()
-        val a = Account(held.server, held.user, held.password)
+        val a = Account(held.server, held.user, held.password, held.uid)
         saveAccount(a)
         prefs.edit().putString(HOME_WHO, held.who).putString(HOME_STAMP, held.stamp).remove("lastSync").apply()
         homeWho.value = held.who
@@ -594,9 +597,21 @@ class Library(app: Application) : AndroidViewModel(app) {
         // Stop using it, or the app's own sign-in, while Home was asked.
         if (homeWho.value != who) return@withLock false
         when (val step = HomeAccount.follow(who, stamp, answer)) {
-            is HomeAccount.Step.Keep -> false
+            is HomeAccount.Step.Keep -> {
+                // The same password, but Home has since learned the user id (an older mirror
+                // kept the login name in its place): the paths take the id from now on.
+                val held = (answer as? HomeAccount.Answer.Has)?.held
+                val now = account.value
+                if (held != null && now != null && held.who == HomeAccount.who(now.server, now.user) && held.uid != now.uid) {
+                    val a = now.copy(uid = held.uid)
+                    saveAccount(a)
+                    remoteTag = null
+                    account.value = a
+                    true
+                } else false
+            }
             is HomeAccount.Step.Take -> {
-                val a = Account(step.held.server, step.held.user, step.held.password)
+                val a = Account(step.held.server, step.held.user, step.held.password, step.held.uid)
                 saveAccount(a)
                 prefs.edit().putString(HOME_STAMP, step.held.stamp).apply()
                 account.value = a

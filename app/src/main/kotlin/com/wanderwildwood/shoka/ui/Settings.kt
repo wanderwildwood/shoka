@@ -34,6 +34,7 @@ import com.mudita.mmd.components.text.TextMMD
 import com.mudita.mmd.components.top_app_bar.TopAppBarMMD
 import com.wanderwildwood.shoka.Library
 import com.wanderwildwood.shoka.R
+import com.wanderwildwood.shoka.cloud.shownServer
 import kotlinx.coroutines.launch
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
@@ -95,8 +96,8 @@ fun SettingsScreen(lib: Library, onBack: () -> Unit, onAbout: () -> Unit) {
                         a == null && fromHome ->
                             stringResource(R.string.home_account_signed_out, stringResource(R.string.home_account_books))
                         a == null -> stringResource(R.string.cloud_off)
-                        fromHome -> stringResource(R.string.home_account_in_use, a.user, a.server.removePrefix("https://"))
-                        else -> stringResource(R.string.cloud_signed_in_folder, a.user, a.server.removePrefix("https://"), folder)
+                        fromHome -> stringResource(R.string.home_account_in_use, a.user, shownServer(a.server))
+                        else -> stringResource(R.string.cloud_signed_in_folder, a.user, shownServer(a.server), folder)
                     },
                 ) { cloud = true }
             }

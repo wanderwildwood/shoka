@@ -118,6 +118,15 @@ class DavFolderTest {
         assertEquals("Shelf (shoka)", r.getHeader("User-Agent"))
     }
 
+    @Test fun pathsTakeTheUserIdAndSignInTakesTheLoginName() {
+        val email = DavFolder(Account(server.url("/").toString().trimEnd('/'), "Ann@example.org", "pw", "ann"), "Books")
+        server.enqueue(MockResponse().setResponseCode(404))
+        assertEquals("", email.etag("catalogue.json"))
+        val r = server.takeRequest()
+        assertEquals("/remote.php/dav/files/ann/Books/catalogue.json", r.path)
+        assertEquals(okhttp3.Credentials.basic("Ann@example.org", "pw", Charsets.UTF_8), r.getHeader("Authorization"))
+    }
+
     @Test fun noServerIsUnreachable() {
         val gone = DavFolder(Account("http://127.0.0.1:1", "ann", "x"), "Books")
         try { gone.etag("catalogue.json"); fail() } catch (_: Unreachable) { }

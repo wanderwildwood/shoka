@@ -52,9 +52,34 @@ class NextcloudCheckTest {
         assertTrue(a.server.startsWith("http://localhost"))
     }
 
-    @Test fun `the user name the server knows replaces a typed email`() {
+    @Test fun `a typed email signs in and the user id the server knows builds the paths`() {
         val r = NextcloudCheck.run(serve(true, goodUser = "ada@example.org"), "ada@example.org", "app-pass", local)
-        assertEquals("ada", (r as CheckResult.Good).account.user)
+        val a = (r as CheckResult.Good).account
+        assertEquals("ada@example.org", a.user)
+        assertEquals("ada", a.uid)
+    }
+
+    @Test fun `plain http is taken only by a debug build and only to a test host`() {
+        assertTrue(LoginFlow.allowed("https://cloud.example.org", debug = false))
+        assertFalse(LoginFlow.allowed("http://10.0.2.2:8080", debug = false))
+        assertFalse(LoginFlow.allowed("http://localhost", debug = false))
+        assertTrue(LoginFlow.allowed("http://10.0.2.2:8080", debug = true))
+        assertTrue(LoginFlow.allowed("http://localhost:8080/nc", debug = true))
+        assertTrue(LoginFlow.allowed("HTTP://127.0.0.1", debug = true))
+        assertFalse(LoginFlow.allowed("http://cloud.example.org", debug = true))
+        assertFalse(LoginFlow.allowed("http://10.0.2.2.example.org", debug = true))
+    }
+
+    @Test fun `the server is shown one way`() {
+        assertEquals("cloud.example.org", shownServer("https://Cloud.Example.org/"))
+        assertEquals("cloud.example.org", shownServer("https://cloud.example.org:443"))
+        assertEquals("10.0.2.2:8080", shownServer("http://10.0.2.2:8080"))
+        assertEquals("10.0.2.2", shownServer("http://10.0.2.2:80"))
+        assertEquals("example.org:8443/nc", shownServer("https://example.org:8443/nc/"))
+    }
+
+    @Test fun `an account never shows its password`() {
+        assertFalse(Account("https://c", "ada", "secret-pass").toString().contains("secret-pass"))
     }
 
     @Test fun `a wrong password says so`() {
