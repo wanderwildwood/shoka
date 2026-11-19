@@ -23,6 +23,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import com.wanderwildwood.shoka.cloud.Account
+import com.wanderwildwood.shoka.cloud.HomeAccount
 import com.wanderwildwood.shoka.cloud.LoginFlow
 import com.wanderwildwood.shoka.cloud.Secrets
 import org.json.JSONArray
@@ -100,6 +101,18 @@ class Library(app: Application) : AndroidViewModel(app) {
     enum class SyncState { OFF, SYNCING, DONE, FAILED }
 
     val account = MutableStateFlow(loadAccount())
+
+    /**
+     * The phone's Nextcloud account, taken from Home ([HomeAccount.Held.who]: server and user, no
+     * password), or null when the account is the app's own. Set while [account] is null too: Home
+     * signed out (or is gone) and the app waits for the same account to come back. The sealed
+     * [account] is then only a mirror of Home's, written from Home and let go as [followHome] says.
+     */
+    val homeWho = MutableStateFlow(prefs.getString(HOME_WHO, null))
+
+    /** Counts Home's change notices, so a screen asks again whether Home has an account to offer. */
+    val homeNotices = MutableStateFlow(0)
+    private val homeLock = Mutex()
     val folder = MutableStateFlow(prefs.getString("folder", "Books") ?: "Books")
     val syncState = MutableStateFlow(if (account.value == null) SyncState.OFF else SyncState.DONE)
     val lastSync = MutableStateFlow(prefs.getLong("lastSync", 0L))
@@ -167,7 +180,19 @@ class Library(app: Application) : AndroidViewModel(app) {
     fun resume() {
         books.value.filter { it.status == Status.OFFLINE }.forEach { enqueue(it.id) }
         recheckWaits = false
-        if (account.value != null && syncState.value == SyncState.FAILED) syncNow()
+        if (homeWho.value != null) {
+            // Home asked first: a new password there, or Home signed out, before any sync.
+            viewModelScope.launch {
+                if (followHome() || syncState.value == SyncState.FAILED) syncNow()
+            }
+        } else if (account.value != null && syncState.value == SyncState.FAILED) syncNow()
+    }
+
+    /** Home said its account changed: asked again, and any screen showing the row asks too. */
+    fun homeChanged() {
+        homeNotices.update { it + 1 }
+        if (homeWho.value == null) return
+        viewModelScope.launch { if (followHome()) syncNow() }
     }
 
     /**
@@ -412,10 +437,15 @@ class Library(app: Application) : AndroidViewModel(app) {
 
     /** Starts a sync with Nextcloud, or returns null when none is set up; the job ends when it has. */
     fun syncNow(): Job? {
-        val acct = account.value ?: return null
+        if (account.value == null && homeWho.value == null) return null
         return viewModelScope.launch {
             loaded.await()
+            // An account taken from Home is never used past a change there.
+            followHome()
+            val acct = account.value ?: return@launch
             syncLock.withLock {
+                // Let go while this waited (Home signed out, or Stop using it): not synced.
+                if (account.value !== acct) return@withLock
                 syncState.value = SyncState.SYNCING
                 val sent = all.value
                 val result = withContext(Dispatchers.IO) {
@@ -423,7 +453,8 @@ class Library(app: Application) : AndroidViewModel(app) {
                 }
                 val synced = result.getOrNull()
                 if (synced == null) {
-                    syncState.value = SyncState.FAILED
+                    // Let go while it ran: signed out, quietly, not failed.
+                    syncState.value = if (account.value == null) SyncState.OFF else SyncState.FAILED
                     return@withLock
                 }
                 remoteTag = synced.etag
@@ -435,7 +466,7 @@ class Library(app: Application) : AndroidViewModel(app) {
                 all.value.filter { !it.deleted && it.status == Status.LOOKING }.forEach { enqueue(it.id) }
                 lastSync.value = now()
                 prefs.edit().putLong("lastSync", lastSync.value).apply()
-                syncState.value = SyncState.DONE
+                syncState.value = if (account.value == null) SyncState.OFF else SyncState.DONE
             }
         }
     }
@@ -488,13 +519,18 @@ class Library(app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("account", json.toString()).apply()
     }
 
+    /** The app's own sign-in: any choice of Home's account is let go. */
     fun signIn(a: Account) {
         saveAccount(a)
+        prefs.edit().remove(HOME_WHO).remove(HOME_STAMP).apply()
+        homeWho.value = null
         account.value = a
         syncNow()
     }
 
     fun signOut() {
+        // Home's app password is Home's: it is never revoked from here, only let go.
+        if (homeWho.value != null) { stopHome(); return }
         val leaving = account.value
         // The app password is deleted on the server too, best effort: off the network the reader is
         // still signed out here, and it can be revoked in the server's security settings.
@@ -506,6 +542,78 @@ class Library(app: Application) : AndroidViewModel(app) {
         account.value = null
         lastSync.value = 0L
         syncState.value = SyncState.OFF
+    }
+
+    /**
+     * The phone's Nextcloud account, taken at the reader's press in place of the app's own sign-in,
+     * which is let go (and its app password revoked, as Sign out does). The folder stays.
+     */
+    fun useHome(held: HomeAccount.Held) {
+        val own = account.value.takeIf { homeWho.value == null }
+        if (own != null && own.password != held.password) {
+            viewModelScope.launch(Dispatchers.IO) { runCatching { LoginFlow.revoke(own) } }
+        }
+        pendingSync?.cancel()
+        val a = Account(held.server, held.user, held.password)
+        saveAccount(a)
+        prefs.edit().putString(HOME_WHO, held.who).putString(HOME_STAMP, held.stamp).remove("lastSync").apply()
+        homeWho.value = held.who
+        remoteTag = null
+        lastSync.value = 0L
+        account.value = a
+        syncState.value = SyncState.DONE
+        syncNow()
+    }
+
+    /**
+     * Stop using it: Home's account is let go here (never revoked: it is Home's), and the app goes
+     * back to its own sign-in, empty. The books stay.
+     */
+    fun stopHome() {
+        pendingSync?.cancel()
+        prefs.edit().remove("account").remove("lastSync").remove(HOME_WHO).remove(HOME_STAMP).apply()
+        homeWho.value = null
+        remoteTag = null
+        account.value = null
+        lastSync.value = 0L
+        syncState.value = SyncState.OFF
+    }
+
+    /**
+     * Asks Home about the account taken from it, off the main thread, and does as
+     * [HomeAccount.follow] says. A new password for the same account takes the old one's place;
+     * Home signed out, or gone, signs this app out quietly (no error, no retry) and it waits for the
+     * same account; another account there is let go for good. The books stay either way. True when
+     * an account was taken and a sync should follow.
+     */
+    suspend fun followHome(): Boolean = homeLock.withLock {
+        val who = homeWho.value ?: return@withLock false
+        // Nothing held (Home signed out, or a keystore that would not seal): the stamp is empty.
+        val stamp = if (account.value == null) "" else prefs.getString(HOME_STAMP, null).orEmpty()
+        val answer = withContext(Dispatchers.IO) { HomeAccount.ask(getApplication()) }
+        // Stop using it, or the app's own sign-in, while Home was asked.
+        if (homeWho.value != who) return@withLock false
+        when (val step = HomeAccount.follow(who, stamp, answer)) {
+            is HomeAccount.Step.Keep -> false
+            is HomeAccount.Step.Take -> {
+                val a = Account(step.held.server, step.held.user, step.held.password)
+                saveAccount(a)
+                prefs.edit().putString(HOME_STAMP, step.held.stamp).apply()
+                account.value = a
+                if (syncState.value == SyncState.OFF) syncState.value = SyncState.DONE
+                true
+            }
+            is HomeAccount.Step.Drop -> {
+                pendingSync?.cancel()
+                prefs.edit().remove("account").putString(HOME_STAMP, "")
+                    .apply { if (!step.following) remove(HOME_WHO) }.apply()
+                if (!step.following) homeWho.value = null
+                remoteTag = null
+                account.value = null
+                syncState.value = SyncState.OFF
+                false
+            }
+        }
     }
 
     fun setFolder(f: String) {
@@ -560,6 +668,8 @@ class Library(app: Application) : AndroidViewModel(app) {
     private fun now() = System.currentTimeMillis()
 
     companion object {
+        private const val HOME_WHO = "home_who"
+        private const val HOME_STAMP = "home_stamp"
         /** How often an open app asks whether the shared catalog has changed. */
         const val WATCH_MS = 15_000L
         /** How long after the last change this phone writes, so a run of scans is one write. */

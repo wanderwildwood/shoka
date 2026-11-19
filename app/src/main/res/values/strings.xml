@@ -199,6 +199,14 @@
     <string name="cloud_sign_out">Sign out</string>
     <string name="cloud_scan_qr">Scan a QR code</string>
     <string name="cloud_qr_note">On a computer, in Nextcloud: Personal settings → Security → Create new app password → Show QR code for mobile apps. Point the camera at it.</string>
+    <!-- The phone's Nextcloud account, the one Home (the launcher) holds. -->
+    <string name="home_account_use">Use the phone\'s Nextcloud account</string>
+    <!-- Login name, server without https:// -->
+    <string name="home_account_in_use">%1$s on %2$s, from Home.</string>
+    <string name="home_account_stop">Stop using it</string>
+    <!-- %1$s: what stays, "books" -->
+    <string name="home_account_signed_out">Home is signed out of Nextcloud, so this app is too. Your %1$s stay on the phone.</string>
+    <string name="home_account_books">books</string>
     <string name="cloud_qr_not_login">That QR code isn\'t a Nextcloud sign-in.</string>
 
     <string name="about">About</string>

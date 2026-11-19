@@ -52,6 +52,7 @@ fun SettingsScreen(lib: Library, onBack: () -> Unit, onAbout: () -> Unit) {
     val scope = rememberCoroutineScope()
     val account by lib.account.collectAsStateWithLifecycle()
     val folder by lib.folder.collectAsStateWithLifecycle()
+    val homeWho by lib.homeWho.collectAsStateWithLifecycle()
     val books by lib.books.collectAsStateWithLifecycle()
     var cloud by rememberSaveable { mutableStateOf(false) }
     var exported by rememberSaveable { mutableStateOf<String?>(null) }
@@ -87,10 +88,16 @@ fun SettingsScreen(lib: Library, onBack: () -> Unit, onAbout: () -> Unit) {
         PagedColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp)) {
             item(key = "cloud") {
                 val a = account
+                val fromHome = homeWho != null
                 SettingRow(
                     stringResource(R.string.cloud_heading),
-                    if (a == null) stringResource(R.string.cloud_off)
-                    else stringResource(R.string.cloud_signed_in_folder, a.user, a.server.removePrefix("https://"), folder),
+                    when {
+                        a == null && fromHome ->
+                            stringResource(R.string.home_account_signed_out, stringResource(R.string.home_account_books))
+                        a == null -> stringResource(R.string.cloud_off)
+                        fromHome -> stringResource(R.string.home_account_in_use, a.user, a.server.removePrefix("https://"))
+                        else -> stringResource(R.string.cloud_signed_in_folder, a.user, a.server.removePrefix("https://"), folder)
+                    },
                 ) { cloud = true }
             }
             item(key = "export") {

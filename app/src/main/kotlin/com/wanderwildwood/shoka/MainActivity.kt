@@ -27,6 +27,9 @@ class MainActivity : ComponentActivity() {
     // the activity through a turn, so the camera and what is on screen carry on.
     private val turner = TurnWithPhone(this)
 
+    /** Stops hearing Home's change notices about its Nextcloud account. */
+    private var stopHome: () -> Unit = {}
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         turner.set(library.turnWithPhone.value)
@@ -80,9 +83,13 @@ class MainActivity : ComponentActivity() {
         library.resume()
         // Another phone's scans turn up while this one is open; nothing is asked while it is not.
         library.watch(true)
+        // Home signing in, getting a new password or signing out is heard while the app is open.
+        stopHome = com.wanderwildwood.shoka.cloud.HomeAccount.observe(this) { library.homeChanged() }
     }
 
     override fun onStop() {
+        stopHome()
+        stopHome = {}
         library.watch(false)
         super.onStop()
     }

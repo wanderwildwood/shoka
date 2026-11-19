@@ -58,6 +58,7 @@ import com.wanderwildwood.shoka.Library
 import com.wanderwildwood.shoka.Listen
 import com.wanderwildwood.shoka.Source
 import com.wanderwildwood.shoka.cloud.CheckResult
+import com.wanderwildwood.shoka.cloud.HomeAccount
 import com.wanderwildwood.shoka.cloud.LoginFlow
 import com.wanderwildwood.shoka.cloud.NextcloudCheck
 import com.wanderwildwood.shoka.cloud.Problem
@@ -67,6 +68,7 @@ import com.wanderwildwood.shoka.Shelf
 import com.wanderwildwood.shoka.Spoken
 import com.wanderwildwood.shoka.Status
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -407,7 +409,8 @@ private fun LabelRow(label: String, control: @Composable () -> Unit) {
 /**
  * Nextcloud: sign in by typing the server address, the login name and an app password (the
  * first choice, with a Test button), by scanning the QR code Nextcloud shows beside a new app
- * password, or through the server's own page in the browser (the last choice).
+ * password, or through the server's own page in the browser (the last choice). Where Home holds
+ * the phone's Nextcloud account, one row uses that one instead (cloud/HomeAccount.kt).
  */
 @Composable
 fun CloudDialog(lib: Library, dismiss: () -> Unit) {
@@ -417,6 +420,15 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
     val folder by lib.folder.collectAsStateWithLifecycle()
     val state by lib.syncState.collectAsStateWithLifecycle()
     val last by lib.lastSync.collectAsStateWithLifecycle()
+    val homeWho by lib.homeWho.collectAsStateWithLifecycle()
+    val homeNotices by lib.homeNotices.collectAsStateWithLifecycle()
+    // Whether Home has an account for this app: asked off the main thread when the dialog opens,
+    // and again on each change notice from Home.
+    var homeAvailable by remember { mutableStateOf(false) }
+    LaunchedEffect(homeNotices, account, homeWho) {
+        homeAvailable = homeWho == null && withContext(Dispatchers.IO) { HomeAccount.available(context) }
+    }
+    var browserWait by remember { mutableStateOf<Job?>(null) }
 
     var server by remember { mutableStateOf("") }
     var user by remember { mutableStateOf("") }
@@ -458,8 +470,27 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
         PagedColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) { item {
             Title(stringResource(R.string.cloud_heading))
             val a = account
-            if (a != null) {
-                Note(stringResource(R.string.cloud_signed_in, a.user, a.server.removePrefix("https://")))
+            val fromHome = homeWho != null
+            // Pressed: Home is asked once more, and its account takes the place of this app's own.
+            fun useHome() {
+                browserWait?.cancel()
+                waiting = false
+                scope.launch {
+                    val held = withContext(Dispatchers.IO) { HomeAccount.read(context) }
+                    if (held == null) homeAvailable = false else { problem = null; qr = false; lib.useHome(held) }
+                }
+            }
+            if (a == null && fromHome) {
+                // Home signed out, or is gone: so is this app, quietly, until the same account is back there.
+                Note(stringResource(R.string.home_account_signed_out, stringResource(R.string.home_account_books)))
+                Spacer(Modifier.height(6.dp))
+                DialogButton(stringResource(R.string.home_account_stop)) { lib.stopHome() }
+            } else if (a != null) {
+                val shown = a.server.removePrefix("https://")
+                Note(
+                    if (fromHome) stringResource(R.string.home_account_in_use, a.user, shown)
+                    else stringResource(R.string.cloud_signed_in, a.user, shown)
+                )
                 Note(
                     when (state) {
                         Library.SyncState.SYNCING -> stringResource(R.string.cloud_syncing)
@@ -477,10 +508,16 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                     DialogButton(stringResource(R.string.cloud_use_folder), filled = true) { lib.setFolder(newFolder) }
                 }
                 DialogButton(stringResource(R.string.cloud_sync_now), filled = true) { lib.syncNow() }
-                DialogButton(stringResource(R.string.cloud_sign_out)) { lib.signOut() }
+                if (fromHome) {
+                    DialogButton(stringResource(R.string.home_account_stop)) { lib.stopHome() }
+                } else {
+                    if (homeAvailable) DialogButton(stringResource(R.string.home_account_use)) { useHome() }
+                    DialogButton(stringResource(R.string.cloud_sign_out)) { lib.signOut() }
+                }
             } else {
                 Note(stringResource(R.string.cloud_explain))
                 Spacer(Modifier.height(6.dp))
+                if (homeAvailable) DialogButton(stringResource(R.string.home_account_use), filled = true) { useHome() }
                 if (qr) {
                     Note(stringResource(R.string.cloud_qr_note))
                     Spacer(Modifier.height(6.dp))
@@ -547,7 +584,7 @@ fun CloudDialog(lib: Library, dismiss: () -> Unit) {
                     if (server.isBlank()) { problem = noServer; return@DialogButton }
                     if (LoginFlow.isPlain(server)) { problem = plainServer; return@DialogButton }
                     if (waiting) return@DialogButton
-                    scope.launch {
+                    browserWait = scope.launch {
                         val started = runCatching { withContext(Dispatchers.IO) { LoginFlow.start(server) } }.getOrNull()
                         if (started == null) { problem = unreachable; return@launch }
                         // Only a real browser: the system's WebView shell answers a web address on some

@@ -15,7 +15,8 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <queries>
-        <!-- Home, whose dark mode switch this app follows when Home is installed. -->
+        <!-- Home, whose dark mode switch this app follows when Home is installed, and whose
+             Nextcloud account it may use (cloud/HomeAccount.kt). -->
         <package android:name="com.wanderwildwood.iori" />
         <!-- Audio Reader, asked whether it has a book, for "Listen" on the book's page. -->
         <package android:name="com.wanderwildwood.mimidoku" />

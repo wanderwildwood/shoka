@@ -28,7 +28,11 @@ other books goes with it.
 **Nextcloud**, only if you sign in: the catalog is written to a folder on your own
 server. While the app is on screen it asks that server every 15 seconds whether the catalog
 has changed, so books another phone adds show up; it asks nothing while the app is closed. The app password that sign-in creates is kept in the app's private storage on the
-phone; revoke it from Nextcloud's security settings at any time.
+phone; revoke it from Nextcloud's security settings at any time. If you choose to use the
+Nextcloud account Home (the launcher) holds, the app asks Home for it, and only the real Home,
+checked by its signing certificate; a copy of Home's app password is kept sealed in the app's
+private storage while you use it, and removed when Home signs out, is uninstalled, or you press
+Stop using it.
 
 The catalog itself is kept in the app's private storage. The app does not back it up, and
 uninstalling it removes it, along with the Nextcloud sign-in. The copy on Nextcloud stays

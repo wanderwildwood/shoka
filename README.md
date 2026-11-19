@@ -104,6 +104,12 @@ press **Show QR code for mobile apps**, and scan it with **Scan a QR code**. Pul
 list down from its top syncs too, and a line says "Syncing…" and then "Up to date"; with no
 Nextcloud set up it does nothing.
 
+When Home, the launcher, is signed in to a Nextcloud, **Use the phone's Nextcloud account**
+in the same place takes that account instead, with nothing to type. Shelf asks Home for it
+each time it opens, before each sync and whenever Home says it changed: if Home signs out,
+Shelf is signed out too and the books stay on the phone; when Home signs back in to the same
+account, Shelf picks it up again. **Stop using it** goes back to Shelf's own sign-in.
+
 **Dark mode** is a switch in Settings: the same screens, white on black. It also follows the
 phone's own dark setting.
 
