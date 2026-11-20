@@ -134,6 +134,9 @@ class Library(app: Application) : AndroidViewModel(app) {
     private var remoteTag: String? = null
     private var watching: Job? = null
 
+    /** Home being asked as the app comes to the front ([resume]); the watch waits for it. */
+    private var homeAsked: Job? = null
+
     private var lastId = 0L
 
     init {
@@ -180,12 +183,15 @@ class Library(app: Application) : AndroidViewModel(app) {
     fun resume() {
         books.value.filter { it.status == Status.OFFLINE }.forEach { enqueue(it.id) }
         recheckWaits = false
-        if (homeWho.value != null) {
+        homeAsked = if (homeWho.value != null) {
             // Home asked first: a new password there, or Home signed out, before any sync.
             viewModelScope.launch {
                 if (followHome() || syncState.value == SyncState.FAILED) syncNow()
             }
-        } else if (account.value != null && syncState.value == SyncState.FAILED) syncNow()
+        } else {
+            if (account.value != null && syncState.value == SyncState.FAILED) syncNow()
+            null
+        }
     }
 
     /** Home said its account changed: asked again, and any screen showing the row asks too. */
@@ -478,12 +484,9 @@ class Library(app: Application) : AndroidViewModel(app) {
      */
     fun watch(on: Boolean) {
         watching?.cancel()
-        watching = if (!on) null else viewModelScope.launch {
-            while (true) {
-                look()
-                delay(WATCH_MS)
-            }
-        }
+        // Home is heard out before the first look, so a password Home has let go is never sent.
+        val first = homeAsked
+        watching = if (!on) null else viewModelScope.launch { Watch.loop(first, WATCH_MS) { look() } }
     }
 
     /** One look at the server's etag; a sync when it differs from what this phone last saw. */
@@ -698,4 +701,13 @@ class Library(app: Application) : AndroidViewModel(app) {
 object Watch {
     /** Whether the server's [now] etag means another phone wrote since this one last synced. */
     fun moved(seen: String?, now: String): Boolean = seen == null || !com.wanderwildwood.shoka.cloud.Etag.same(seen, now)
+
+    /** The watch: waits for [first] (Home being asked), then [look]s every [every] ms until cancelled. */
+    suspend fun loop(first: Job?, every: Long, look: suspend () -> Unit): Nothing {
+        first?.join()
+        while (true) {
+            look()
+            delay(every)
+        }
+    }
 }
